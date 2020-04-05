@@ -134,7 +134,7 @@ class BallotRecognizer(nn.Module):
 		self.modules['labeler'].resize(len(contenst_info.options))
 
 
-def train_single_contest(model, config, train_data, test_data):
+def train_single_contest(model, config, train_data, test_data, number_candidates):
 	if config['cuda']:
 		model = utils.cuda(model, config)
 	
@@ -151,13 +151,13 @@ def train_single_contest(model, config, train_data, test_data):
 		for batch_idx, batch in enumerate(train_data):
 			# Must extract images, labels from "batch" variable. Move to CUDA device.
 			images = utils.cuda(torch.tensor([x.image for x in batch], dtype=torch.float32), config)
-			labels = utils.cuda(torch.tensor([x.actual_vote_index for x in batch], dtype=torch.long), config)
+			labels = utils.cuda(torch.tensor([label_to_one_hot(x.actual_vote_index, number_candidates) for x in batch], dtype=torch.float32), config)
 			#print(images)
 			optimizer.zero_grad()
 			output = model(images)
 
-			pred = output.argmax(dim=1, keepdim=True)  # get the index of the max value
-			batch_cor = pred.eq(labels.view_as(pred)).sum().item() # count correct items
+			#pred = output.argmax(dim=1, keepdim=True)  # get the index of the max value
+			#batch_cor = pred.eq(labels.view_as(pred)).sum().item() # count correct items
 
 			# Perform optimization
 			loss = criterion(output, labels)
@@ -187,7 +187,7 @@ def train_single_contest(model, config, train_data, test_data):
 			for batch_idx, batch in enumerate(test_data):
 				# Must extract images, labels from "batch" variable. Move to CUDA device.
 				images = utils.cuda(torch.tensor([x.image for x in batch], dtype=torch.float32), config)
-				labels = utils.cuda(torch.tensor([x.actual_vote_index for x in batch], dtype=torch.long), config)
+				labels = utils.cuda(torch.tensor([label_to_one_hot(x.actual_vote_index, number_candidates) for x in batch], dtype=torch.float32), config)
 				# Evaluate and compute statistics
 				(output, images, loss, correct) = evaluate_one_batch(model, criterion, images, labels)
 				batch_test_images += images
@@ -214,7 +214,24 @@ def evaluate_one_batch(model, criterion, images, labels):
 
 	# Compute the number of correctly computed election outcomes
 	batch_test_correct = 0
-	pred = output.argmax(dim=1, keepdim=True)  # get the index of the max value
-	batch_test_correct += pred.eq(labels.view_as(pred)).sum().item() # count correct items
+	for (index, value) in enumerate(labels):
+		correct_so_far = True
+		for inner_index, inner_value in enumerate(value):
+			#print(value, output[index])
+			if inner_value - output[index][inner_index] > 1:
+				correct_so_far = False
+				break
+
+		if correct_so_far:
+			batch_test_correct += 1
+		
+	#pred = output.argmax(dim=1, keepdim=True)  # get the index of the max value
+	#batch_test_correct += pred.eq(labels.view_as(pred)).sum().item() # count correct items
 	
 	return (output, batch_test_images, batch_test_loss, batch_test_correct)
+
+def label_to_one_hot(label, length):
+	ret = [0]*length
+	if label != None:
+		 ret[label] = 1
+	return ret

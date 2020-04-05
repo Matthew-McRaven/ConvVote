@@ -18,7 +18,10 @@ def create_fake_ballot_image(contest, contest_phys_data):
 # Black out all the pixels corresponding to the location on the ballot representing the candidate.
 def create_fake_marked_ballot(contest, contest_phys_data):
 	ballot_image = create_fake_ballot_image(contest, contest_phys_data)
-	marked = Election.MarkedContest(contest, ballot_image, random.randint(0, len(contest.options)-1))
+	marked = Election.MarkedContest(contest, ballot_image, random.randint(0, len(contest.options)))
+	if marked.actual_vote_index == len(contest.options):
+		marked.actual_vote_index = None
+		return marked
 	which = marked.actual_vote_index
 	location = contest_phys_data.options[which]
 	for x in range(location[0], location[2]):

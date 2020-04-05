@@ -27,7 +27,8 @@ def contest_entry_point(config):
 	contest, contest_phys = ElectionFaker.create_fake_contest()
 	# TODO: scale BallotRecognizer based on election output size
 	model = ImgRec.BallotRecognizer(config, contest_phys.bound_rect[2], contest_phys.bound_rect[3], len(contest.options))
-	model = ImgRec.train_single_contest(model, config, get_train(config, contest, contest_phys), get_test(config, contest, contest_phys))
+	model = ImgRec.train_single_contest(model, config, get_train(config, contest, contest_phys), 
+	 get_test(config, contest, contest_phys), len(contest.options))
 	# TODO: write model to file
 
 	# Cleanup memory allocated by Torch

@@ -17,7 +17,7 @@ def generate_default_settings():
 	ret['train_log_int']	= 1000
 
 	# See Settings::get_criterion() for available criterion.
-	ret['criterion'] 		= 'CEL-SUM'
+	ret['criterion'] 		= 'MSE-SUM'
 	# See Settings::get_criterion() for available criterion.
 	ret['optimizer'] 		= 'adam'
 
@@ -39,7 +39,9 @@ def generate_default_settings():
 def get_criterion(config):
 	key = 'criterion'
 	key = config[key].lower()
-	if key == "cel-sum":
+	if key == 'mse-sum':
+		return nn.MSELoss(reduction='sum')
+	elif key == 'cel-sum':
 		return nn.CrossEntropyLoss(reduction='sum')
 	else:
 		return nn.CrossEntropyLoss(reduction='sum')
