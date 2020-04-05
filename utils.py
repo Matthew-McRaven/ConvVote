@@ -28,6 +28,7 @@ def pad_nearest_pow2(number, at_least_this=1):
 		pad_first = needed_padding // 2
 		pad_second = needed_padding - pad_first
 	return (next_pow2, pad_first, pad_second)
+	
 # Convert images to tensors, and apply normalization if necessary
 def image_to_tensor(image):
 	#TODO: apply image normalization.

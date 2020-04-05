@@ -36,19 +36,19 @@ def create_fake_contest(contest_index=0, min_candidate=1, max_candidates=15, min
 	min_x, min_y = min_xy_per_candidate
 	max_x, max_y = max_xy_per_candidate
 	candidate_number = random.randint(min_candidate, max_candidates)
-	x_size = random.randint(min_x, max_x)
-	y_size = random.randint(min_y, max_y)
 	fake = Faker()
 	name = fake.catch_phrase()
 	description = fake.text()
 	options = []
 	locations = []
-	y_offset = 0
+	x_size = random.randint(min_x, max_x)
+	y_rolling = 0
 	for i in range(candidate_number):
+		y_size = random.randint(min_y, max_y)
 		options.append(Election.OptionDefinition(i, fake.name()))
-		locations.append((0, y_offset, x_size, y_offset+y_size))
-		y_offset += y_size
-	print(f"{candidate_number} candidates, each with a box that is {x_size}x{y_size}")
+		locations.append((0, y_rolling, x_size, y_rolling+y_size))
+		y_rolling += y_size
+	print(f"{candidate_number} candidates, with a ballot that is {x_size}x{y_rolling}")
 	contest = Election.ContestDefinition(contest_index, name, description, options)
-	contest_phys = Election.ContestLocation(contest_index, (0,0, x_size, y_size * candidate_number), locations)
+	contest_phys = Election.ContestLocation(contest_index, (0,0, x_size, y_rolling), locations)
 	return (contest, contest_phys)
