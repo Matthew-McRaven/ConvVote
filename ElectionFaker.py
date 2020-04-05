@@ -4,6 +4,9 @@ import numpy.random
 import random
 from faker import Faker
 
+import numpy as np
+import numpy.random
+
 # Create a single, fixed fake race with 4 candidates.
 def create_fake_contest(contest_index=0, min_candidate=1, max_candidates=5, min_xy_per_candidate=(18,8), max_xy_per_candidate=(64,16)):
 	min_x, min_y = min_xy_per_candidate
@@ -45,16 +48,22 @@ def create_fake_contest_image(contest):
 # Black out all the pixels corresponding to the location on the ballot representing the candidate.
 def create_fake_marked_contest(contest):
 	ballot_image = create_fake_contest_image(contest)
-	marked = Election.MarkedContest(contest, ballot_image, random.randint(0, len(contest.options)))
-	if marked.actual_vote_index == len(contest.options):
-		marked.actual_vote_index = None
-		return marked
-	which = marked.actual_vote_index
-	location = contest.options[which].bounding_rect
-	#print(location)
-	for x in range(location[0], location[2]):
-		for y in range(location[1], location[3]):
-			marked.image[x][y]=0
+	# Determine probability of selecting no, one, or multiple options per contest
+	count = np.random.choice([0,1,2,3], p=[.1,.6,.2,.1])
+	# Generate random selections on ballot. Use set to avoid duplicates.
+	selected = set()
+	for i in range(count):
+		selected.add(random.randint(0, len(contest.options) - 1))
+
+	# MarkedContests needs selected indicies to be a list, not a set.
+	marked = Election.MarkedContest(contest, ballot_image, list(selected))
+
+	# For all the options that were selected for this contest, mark the contest.
+	for which in marked.actual_vote_index:
+		location = contest.options[which].bounding_rect
+		for x in range(location[0], location[2]):
+			for y in range(location[1], location[3]):
+				marked.image[x][y]=0
 	return marked
 
 

@@ -11,7 +11,7 @@ def cuda(arr, config):
     if config['cuda']:
         return arr.cuda()
     return arr
-	
+
 # Determine the size of a dimension after applying a pool / convolutional layer.
 def resize_convolution(x, kernel_size, dilation, stride, padding):
     x = int(1 + (x + 2*padding - dilation * (kernel_size - 1) - 1)/stride)
@@ -47,11 +47,11 @@ def show_ballot(marked: Election.MarkedContest):
 def ballot_images_to_tensor(ballot_list, contest_idx, config):
 	return cuda(torch.tensor([x.marked_contest[contest_idx].image for x in ballot_list], dtype=torch.float32), config)
 
-def label_to_one_hot(label, length):
+def labels_to_vec(labels, length):
 	ret = [0]*length
-	if label != None:
+	for label in labels:
 		 ret[label] = 1
 	return ret
 
 def ballot_labels_to_tensor(ballot_list, contest_idx, config, number_candidates):
-	return cuda(torch.tensor([label_to_one_hot(x.marked_contest[contest_idx].actual_vote_index, number_candidates) for x in ballot_list], dtype=torch.float32), config)
+	return cuda(torch.tensor([labels_to_vec(x.marked_contest[contest_idx].actual_vote_index, number_candidates) for x in ballot_list], dtype=torch.float32), config)

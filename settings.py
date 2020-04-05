@@ -86,7 +86,7 @@ def get_criterion(config):
 	elif key == 'cel-sum':
 		return nn.CrossEntropyLoss(reduction='sum')
 	else:
-		return nn.CrossEntropyLoss(reduction='sum')
+		raise NotImplementedError(f"{key} is not an implemented loss criterion function.")
 
 def get_optimizer(config, model):
 	key = 'optimizer'
@@ -104,4 +104,6 @@ def get_optimizer(config, model):
 		optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=l2_lambda)
 	elif key == 'adadelta':
 		optimizer = torch.optim.Adadelta(model.parameters(), lr=learning_rate, weight_decay=l2_lambda)
+	else:
+		raise NotImplementedError(f"Optimize '{key}' is not yet implemented.'")
 	return optimizer
