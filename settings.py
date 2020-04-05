@@ -33,8 +33,6 @@ def generate_default_settings():
 	# Determine how the inner CNN / FC layers are built
 	# How many values should come out of the ImageRecognitionCore class?
 	ret['recog_out_dim']	= 100
-	# The number of candidates for a particular race
-	ret['output_layers']	= 4
 	return ret
 
 

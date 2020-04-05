@@ -26,7 +26,7 @@ def contest_entry_point(config):
 	election = load_election_files(config)
 	contest, contest_phys = ElectionFaker.create_fake_contest()
 	# TODO: scale BallotRecognizer based on election output size
-	model = ImgRec.BallotRecognizer(config, contest_phys.bound_rect[2], contest_phys.bound_rect[3])
+	model = ImgRec.BallotRecognizer(config, contest_phys.bound_rect[2], contest_phys.bound_rect[3], len(contest.options))
 	model = ImgRec.train_single_contest(model, config, get_train(config, contest, contest_phys), get_test(config, contest, contest_phys))
 	# TODO: write model to file
 

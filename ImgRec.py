@@ -16,6 +16,7 @@ import math
 
 class ImageRecognitionCore(nn.Module):
 	def __init__(self, config, input_dimensions):
+		print(input_dimensions)
 		super(ImageRecognitionCore, self).__init__()
 		self.input_dimensions = input_dimensions
 		self.output_layer_size = config['recog_out_dim']
@@ -47,30 +48,22 @@ class ImageRescaler(nn.Module):
 		self.resize(imagex, imagey)
 
 	def forward(self, images, batches):
-		# Check that the size of the input matches what we expect from a batch size.
-		#nBatches = len(images)
-		#assert(batches == nBatches)
-		#xlen = len(images[0])
-		#print(f"Xlen is {xlen}.")
-		#assert(xlen == self.x_in_res)
-		#ylen = len(images[0][0])
-		#print(f"Ylen is {ylen}.")
-		#assert(ylen == self.y_in_res)
 
 		# TODO: Perform pooling, interpolation, and nothing depending on the size ratios of in to out resolution.
-		#print(images)
-		out = self.pool(images)
+		out = self.pad(images)
+		out = self.pool(out)
 		return out
 	def output_size(self):
 		return self.x_out_res * self.y_out_res
+
 	def resize(self, imagex, imagey):
 		# Must check that image being passed in is a power of 2, else pooling will fail.
-		assert(utils.is_power2(imagex))
-		assert(utils.is_power2(imagey))
-
-		self.x_in_res, self.y_in_res = imagex, imagey
+		self.x_in_res, pad_top, pad_bottom = utils.pad_nearest_pow2(imagex, self.x_out_res)
+		self.y_in_res, pad_left, pad_right = utils.pad_nearest_pow2(imagey, self.y_out_res)
+		print(pad_left, pad_right, pad_bottom, pad_top)
+		self.pad = nn.ZeroPad2d((pad_left, pad_right, pad_bottom, pad_top))
 		x_ratio, y_ratio = self.x_in_res//self.x_out_res, self.y_in_res//self.y_out_res
-		#print(x_ratio, y_ratio)
+		print(x_ratio, y_ratio)
 		self.pool = nn.AvgPool2d((x_ratio, y_ratio))
 
 		# Randomize initial parameters
@@ -112,13 +105,13 @@ class OutputLabeler(nn.Module):
 # The second segment uses a CNN to perform image recognition on the input image.
 # The third segment selects the best fitting label for that data presented to it.
 class BallotRecognizer(nn.Module):
-	def __init__(self, config, input_image_x, input_image_y):
+	def __init__(self, config, input_image_x, input_image_y, number_candidates):
 		super(BallotRecognizer, self).__init__()
 		
 
 		rescaler = ImageRescaler(config, input_image_x, input_image_y)
 		recognizer = ImageRecognitionCore(config, rescaler.output_size())
-		labeler = OutputLabeler(config, recognizer.output_size(), config['output_layers'])
+		labeler = OutputLabeler(config, recognizer.output_size(), number_candidates)
 
 		self.module_list = nn.ModuleDict({
 			'rescaler':rescaler,

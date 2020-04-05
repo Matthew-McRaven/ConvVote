@@ -17,11 +17,13 @@ def is_power2(number):
 	return number > 0 and math.ceil(math.log(number, 2)) == math.floor(math.log(number, 2)) 
 
 # Return the next power of two larger than number, and the number of indices needed padding above and below the number.
-def pad_nearest_pow2(number):
+def pad_nearest_pow2(number, at_least_this=1):
 	next_pow2 = number
 	pad_first, pad_second = 0,0
-	if not is_power2(number):
+	if not is_power2(number) or number < at_least_this:
 		next_pow2 = 2**math.ceil(math.log(number, 2))
+		if next_pow2 < at_least_this:
+			next_pow2 = at_least_this
 		needed_padding = next_pow2 - number
 		pad_first = needed_padding // 2
 		pad_second = needed_padding - pad_first
