@@ -5,35 +5,34 @@ import torch
 
 # Load an election definition file from the disk.
 # For now, generates a random election outcome.
-def load_election_files(config):
-	election = ElectionFaker.create_election()
-	return election
+def load_ballot_files(config):
+	ballot = ElectionFaker.create_fake_ballot()
+	return ballot
 
 # Create training data using fake ballots.
-def get_train(config, contest):
-	marked_ballots = ElectionFaker.create_fake_marked_ballots(contest, 400)
+def get_train(config, ballot):
+	marked_ballots = ElectionFaker.create_fake_marked_ballots(ballot, 400)
 	n = config['batch_size']
 	return [marked_ballots[i * n:(i + 1) * n] for i in range((len(marked_ballots) + n - 1) // n )]
 
 # Create testing data.
-def get_test(config, contest):
-	return get_train(config, contest)
+def get_test(config, ballot):
+	return get_train(config, ballot)
 
 
 # Train a neural network to recognize the results of a single contest for a single election
 def contest_entry_point(config):
 	# TODO: Load real election information from a file.
-	election = load_election_files(config)
-	contest = ElectionFaker.create_fake_contest()
+	ballot = load_ballot_files(config)
 	# TODO: scale BallotRecognizer based on election output size
-	model = ImgRec.BallotRecognizer(config, contest.bound_rect[2], contest.bound_rect[3], len(contest.options))
-	model = ImgRec.train_single_contest(model, config, get_train(config, contest), 
-	 get_test(config, contest), len(contest.options))
+	model = ImgRec.BallotRecognizer(config, ballot)
+	model = ImgRec.train_single_ballot(model, config, ballot, get_train(config, ballot), 
+	 get_test(config, ballot))
 	# TODO: write model to file
 
 	# Cleanup memory allocated by Torch
 	del model
-	del election
+	del ballot
 	torch.cuda.empty_cache()
 
 

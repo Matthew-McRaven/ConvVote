@@ -2,20 +2,20 @@ class Option:
 	def __init__(self, index=0, description="", bounding_rect=('x1', 'y1', 'x2', 'y2')):
 		self.index = index
 		self.description = description
-		self.bound_rect = bounding_rect
+		self.bounding_rect = bounding_rect
 
 class Contest:
 	def __init__(self, index=0, name="", description="", options=[Option() for i in range(0)], bounding_rect=('x1','y1','x2','y2')):
-		self.id = index
+		self.index = index
 		self.contest_name = name
 		self.description = description
 		self.options = options
-		self.bound_rect = bounding_rect 
+		self.bounding_rect = bounding_rect 
 
 class Ballot:
-	def __init__(self):
-		self.contests = [Contest(index=i)  for i in range(0)]
-		self.ballot_file = "my_file_name"
+	def __init__(self, contests=[Contest(index=i)  for i in range(0)], ballot_file=""):
+		self.contests = contests
+		self.ballot_file = ballot_file
 
 class MarkedContest:
 	def __init__(self, contest=None, image=None, actual_vote_index=0):
@@ -25,6 +25,6 @@ class MarkedContest:
 		self.computed_vote_index = int()
 
 class MarkedBallot:
-	def __init__(self):
-		self.ballot_def = Ballot()
-		self.marked_contest = [MarkedContest() for i in range(0)]
+	def __init__(self, ballot, marked_contests):
+		self.ballot_def = ballot
+		self.marked_contest = marked_contests
