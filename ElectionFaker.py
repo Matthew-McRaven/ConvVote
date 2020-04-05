@@ -5,7 +5,7 @@ import random
 from faker import Faker
 
 # Create a single, fixed fake race with 4 candidates.
-def create_fake_contest(contest_index=0, min_candidate=1, max_candidates=15, min_xy_per_candidate=(18,4), max_xy_per_candidate=(64,16)):
+def create_fake_contest(contest_index=0, min_candidate=1, max_candidates=5, min_xy_per_candidate=(18,8), max_xy_per_candidate=(64,16)):
 	min_x, min_y = min_xy_per_candidate
 	max_x, max_y = max_xy_per_candidate
 	candidate_number = random.randint(min_candidate, max_candidates)
@@ -26,7 +26,6 @@ def create_fake_contest(contest_index=0, min_candidate=1, max_candidates=15, min
 	contest = Election.Contest(contest_index, name=name, description=description, options=options, bounding_rect=(0,0, x_size, y_rolling))
 	return contest
 
-# TODO: Not implemented
 def create_fake_ballot(min_contests=3, max_contests=3)->Election.Ballot:
 	contests = random.randint(min_contests, max_contests)
 	contests_list = []
@@ -52,6 +51,7 @@ def create_fake_marked_contest(contest):
 		return marked
 	which = marked.actual_vote_index
 	location = contest.options[which].bounding_rect
+	#print(location)
 	for x in range(location[0], location[2]):
 		for y in range(location[1], location[3]):
 			marked.image[x][y]=0

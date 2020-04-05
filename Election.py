@@ -1,3 +1,6 @@
+# Classes describing what contests may be found on a ballot,
+# where the contest is located on the ballot, and what options
+# are available for each contest.
 class Option:
 	def __init__(self, index=0, description="", bounding_rect=('x1', 'y1', 'x2', 'y2')):
 		self.index = index
@@ -17,6 +20,7 @@ class Ballot:
 		self.contests = contests
 		self.ballot_file = ballot_file
 
+# Classes corresponding to a specific individual's marked ballot.
 class MarkedContest:
 	def __init__(self, contest=None, image=None, actual_vote_index=0):
 		self.contest = contest

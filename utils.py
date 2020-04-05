@@ -11,6 +11,11 @@ def cuda(arr, config):
     if config['cuda']:
         return arr.cuda()
     return arr
+	
+# Determine the size of a dimension after applying a pool / convolutional layer.
+def resize_convolution(x, kernel_size, dilation, stride, padding):
+    x = int(1 + (x + 2*padding - dilation * (kernel_size - 1) - 1)/stride)
+    return x
 
 # Determine if a number is a power of 2 or not and the number is non-zero.
 def is_power2(number):
@@ -38,3 +43,15 @@ def image_to_tensor(image):
 def show_ballot(marked: Election.MarkedContest):
 	plt.imshow(marked.image, cmap='gray', interpolation='nearest')
 	plt.show()
+
+def ballot_images_to_tensor(ballot_list, contest_idx, config):
+	return cuda(torch.tensor([x.marked_contest[contest_idx].image for x in ballot_list], dtype=torch.float32), config)
+
+def label_to_one_hot(label, length):
+	ret = [0]*length
+	if label != None:
+		 ret[label] = 1
+	return ret
+
+def ballot_labels_to_tensor(ballot_list, contest_idx, config, number_candidates):
+	return cuda(torch.tensor([label_to_one_hot(x.marked_contest[contest_idx].actual_vote_index, number_candidates) for x in ballot_list], dtype=torch.float32), config)

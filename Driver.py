@@ -26,6 +26,7 @@ def contest_entry_point(config):
 	ballot = load_ballot_files(config)
 	# TODO: scale BallotRecognizer based on election output size
 	model = ImgRec.BallotRecognizer(config, ballot)
+	print(model)
 	model = ImgRec.train_single_ballot(model, config, ballot, get_train(config, ballot), 
 	 get_test(config, ballot))
 	# TODO: write model to file
