@@ -2,6 +2,7 @@
 import Election as Election
 import numpy.random
 import random
+from faker import Faker
 
 # TODO: Not implemented
 def create_election()->Election.BallotDefinition:
@@ -20,9 +21,9 @@ def create_fake_marked_ballot(contest, contest_phys_data):
 	marked = Election.MarkedContest(contest, ballot_image, random.randint(0, len(contest.options)-1))
 	which = marked.actual_vote_index
 	location = contest_phys_data.options[which]
-	for x in range(location[0], location[0]+location[2]):
-		for y in range(location[1], location[1]+location[3]):
-			marked.image[y][x]=0
+	for x in range(location[0], location[2]):
+		for y in range(location[1], location[3]):
+			marked.image[x][y]=0
 	return marked
 
 
@@ -31,16 +32,23 @@ def create_fake_marked_ballots(contest, contest_phys_data, count):
 	return [create_fake_marked_ballot(contest, contest_phys_data) for i in range(count)]
 
 # Create a single, fixed fake race with 4 candidates.
-def create_fake_contest():
-	name = "Governor"
-	description = "This race represents the race for govenor. Instructions here blah blah blah."
+def create_fake_contest(contest_index=0, min_candidate=1, max_candidates=15, min_xy_per_candidate=(18,4), max_xy_per_candidate=(64,16)):
+	min_x, min_y = min_xy_per_candidate
+	max_x, max_y = max_xy_per_candidate
+	candidate_number = random.randint(min_candidate, max_candidates)
+	x_size = random.randint(min_x, max_x)
+	y_size = random.randint(min_y, max_y)
+	fake = Faker()
+	name = fake.catch_phrase()
+	description = fake.text()
 	options = []
-	options.append(Election.OptionDefinition(0, "Candidate A"))
-	options.append(Election.OptionDefinition(1, "Candidate B"))
-	options.append(Election.OptionDefinition(2, "Candidate C"))
-	options.append(Election.OptionDefinition(3, "Candidate D"))
-	contest = Election.ContestDefinition(0, name, description, options)
-	
-	locations = [(0, 0 ,64, 16), (0, 16 ,64, 16), (0, 32 ,64, 16), (0, 48 ,64, 16)]
-	contest_phys = Election.ContestLocation(0, (0,0, 64, 64), locations)
+	locations = []
+	y_offset = 0
+	for i in range(candidate_number):
+		options.append(Election.OptionDefinition(i, fake.name()))
+		locations.append((0, y_offset, x_size, y_offset+y_size))
+		y_offset += y_size
+	print(f"{candidate_number} candidates, each with a box that is {x_size}x{y_size}")
+	contest = Election.ContestDefinition(contest_index, name, description, options)
+	contest_phys = Election.ContestLocation(contest_index, (0,0, x_size, y_size * candidate_number), locations)
 	return (contest, contest_phys)
