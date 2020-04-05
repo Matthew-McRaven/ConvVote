@@ -1,30 +1,20 @@
-class OptionDefinition:
-	def __init__(self, index=0, description=""):
+class Option:
+	def __init__(self, index=0, description="", bounding_rect=('x1', 'y1', 'x2', 'y2')):
 		self.index = index
 		self.description = description
+		self.bound_rect = bounding_rect
 
-class ContestDefinition:
-	def __init__(self, index=0, name="", description="", options=[OptionDefinition() for i in range(0)]):
+class Contest:
+	def __init__(self, index=0, name="", description="", options=[Option() for i in range(0)], bounding_rect=('x1','y1','x2','y2')):
 		self.id = index
 		self.contest_name = name
 		self.description = description
 		self.options = options
-
-class OptionLocation:
-	def __init__(self):
-		self.id = int()
-		self.bound_rect = ('x', 'y', 'l', 'w')
-
-class ContestLocation:
-	def __init__(self, contest_index=int(), bounding_rect=('x','y','l','w'), options=[]):
-		self.id = contest_index
 		self.bound_rect = bounding_rect 
-		self.options = options
 
-class BallotDefinition:
+class Ballot:
 	def __init__(self):
-		self.contest_definitions = [ContestDefinition(index=i)  for i in range(0)]
-		self.contest_locations = [ContestLocation() for i in range(0)]
+		self.contests = [Contest(index=i)  for i in range(0)]
 		self.ballot_file = "my_file_name"
 
 class MarkedContest:
@@ -36,5 +26,5 @@ class MarkedContest:
 
 class MarkedBallot:
 	def __init__(self):
-		self.ballot_def = BallotDefinition
+		self.ballot_def = Ballot()
 		self.marked_contest = [MarkedContest() for i in range(0)]

@@ -10,25 +10,25 @@ def load_election_files(config):
 	return election
 
 # Create training data using fake ballots.
-def get_train(config, contest, contest_phys_data):
-	marked_ballots = ElectionFaker.create_fake_marked_ballots(contest, contest_phys_data, 400)
+def get_train(config, contest):
+	marked_ballots = ElectionFaker.create_fake_marked_ballots(contest, 400)
 	n = config['batch_size']
 	return [marked_ballots[i * n:(i + 1) * n] for i in range((len(marked_ballots) + n - 1) // n )]
 
 # Create testing data.
-def get_test(config, contest, contest_phys_data):
-	return get_train(config, contest, contest_phys_data)
+def get_test(config, contest):
+	return get_train(config, contest)
 
 
 # Train a neural network to recognize the results of a single contest for a single election
 def contest_entry_point(config):
 	# TODO: Load real election information from a file.
 	election = load_election_files(config)
-	contest, contest_phys = ElectionFaker.create_fake_contest()
+	contest = ElectionFaker.create_fake_contest()
 	# TODO: scale BallotRecognizer based on election output size
-	model = ImgRec.BallotRecognizer(config, contest_phys.bound_rect[2], contest_phys.bound_rect[3], len(contest.options))
-	model = ImgRec.train_single_contest(model, config, get_train(config, contest, contest_phys), 
-	 get_test(config, contest, contest_phys), len(contest.options))
+	model = ImgRec.BallotRecognizer(config, contest.bound_rect[2], contest.bound_rect[3], len(contest.options))
+	model = ImgRec.train_single_contest(model, config, get_train(config, contest), 
+	 get_test(config, contest), len(contest.options))
 	# TODO: write model to file
 
 	# Cleanup memory allocated by Torch

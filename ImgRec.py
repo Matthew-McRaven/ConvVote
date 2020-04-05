@@ -128,10 +128,9 @@ class BallotRecognizer(nn.Module):
 		outputs = outputs.view(batches, -1)
 		return outputs
 	
-	def resize_for_contest(self, contenst_info: Election.ContestDefinition,
-	 contenst_phys_info: Election.ContestLocation ):
-		self.modules['rescaler'].resize(contenst_phys_info.bound_rect[2], contenst_phys_info.bound_rect[3])
-		self.modules['labeler'].resize(len(contenst_info.options))
+	def resize_for_contest(self, contest: Election.Contest,):
+		self.modules['rescaler'].resize(contest.bound_rect[2], contest.bound_rect[3])
+		self.modules['labeler'].resize(len(contest.options))
 
 
 def train_single_contest(model, config, train_data, test_data, number_candidates):
