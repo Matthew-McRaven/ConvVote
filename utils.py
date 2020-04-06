@@ -4,7 +4,7 @@ import torch
 import pylab as plt
 
 # Our classes.
-import Election as Election
+import Ballot.BallotDefinitions, Ballot.MarkedBallots
 
 # Determine if cuda is available on the machine
 def cuda(arr, config):
@@ -40,7 +40,7 @@ def image_to_tensor(image):
 	return torch.from_numpy(image)
 	
 # Visualize marked ballots.
-def show_ballot(marked: Election.MarkedContest):
+def show_ballot(marked: Ballot.MarkedBallots.MarkedContest):
 	plt.imshow(marked.image, cmap='gray', interpolation='nearest')
 	plt.show()
 

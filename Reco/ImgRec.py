@@ -10,9 +10,9 @@ import torch
 import torch.nn as nn
 from torchvision import datasets, transforms
 
-import settings as Settings
+import Reco.Settings as Settings
 import utils as utils
-import Election as Election
+import Ballot.BallotDefinitions, Ballot.MarkedBallots
 import math
 
 class ImageRecognitionCore(nn.Module):
@@ -216,7 +216,7 @@ class BallotRecognizer(nn.Module):
 		outputs = outputs.view(batches, -1)
 		return outputs
 	
-	def resize_for_election(self, ballot: Election.Ballot,):
+	def resize_for_election(self, ballot: Ballot.BallotDefinitions.Ballot,):
 		self.modules['rescaler'].resize(ballot)
 		self.modules['labeler'].resize(ballot)
 

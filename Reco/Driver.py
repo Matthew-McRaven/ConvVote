@@ -1,6 +1,6 @@
-import ElectionFaker as ElectionFaker
-import ImgRec as ImgRec
-import settings as Settings
+from Reco import ElectionFaker
+from Reco import ImgRec
+from Reco import Settings as Settings
 import torch
 
 # Load an election definition file from the disk.
@@ -36,9 +36,7 @@ def contest_entry_point(config):
 	del ballot
 	torch.cuda.empty_cache()
 
-
-# Launch a training run, with optional hyperparameter sweeping.
-if __name__ == "__main__":
+def main():
 	config = Settings.generate_default_settings()
 	if True or importlib.util.find_spec("ray") is None:
 		contest_entry_point(config)
@@ -49,3 +47,6 @@ if __name__ == "__main__":
 		config['cuda'] = False
 		# TODO: Log accuracy results within neural network.
 		analysis = tune.run(contest_entry_point, config=config, resources_per_trial={ "cpu": 1, "gpu": 0.0})
+# Launch a training run, with optional hyperparameter sweeping.
+if __name__ == "__main__":
+	main()

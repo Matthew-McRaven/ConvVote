@@ -1,11 +1,12 @@
 
-import Election as Election
 import numpy.random
 import random
 from faker import Faker
 
 import numpy as np
 import numpy.random
+
+from Ballot import BallotDefinitions, MarkedBallots
 
 # Create a single, fixed fake race with 4 candidates.
 def create_fake_contest(contest_index=0, min_candidate=1, max_candidates=5, min_xy_per_candidate=(18,8), max_xy_per_candidate=(64,16)):
@@ -22,21 +23,21 @@ def create_fake_contest(contest_index=0, min_candidate=1, max_candidates=5, min_
 	for i in range(candidate_number):
 		y_size = random.randint(min_y, max_y)
 		bound = (0, y_rolling, x_size, y_rolling+y_size)
-		options.append(Election.Option(i, fake.name(), bounding_rect=(bound)))
+		options.append(BallotDefinitions.Option(i, fake.name(), bounding_rect=(bound)))
 		locations.append(bound)
 		y_rolling += y_size
 	print(f"{candidate_number} candidates, with a ballot that is {x_size}x{y_rolling}")
-	contest = Election.Contest(contest_index, name=name, description=description, options=options, bounding_rect=(0,0, x_size, y_rolling))
+	contest = BallotDefinitions.Contest(contest_index, name=name, description=description, options=options, bounding_rect=(0,0, x_size, y_rolling))
 	return contest
 
-def create_fake_ballot(min_contests=3, max_contests=3)->Election.Ballot:
+def create_fake_ballot(min_contests=3, max_contests=3)->BallotDefinitions.Ballot:
 	contests = random.randint(min_contests, max_contests)
 	contests_list = []
 	for i in range(0, contests):
 		current = create_fake_contest(contest_index=i)
 		contests_list.append(current)
 
-	ballot = Election.Ballot(contests_list)
+	ballot = BallotDefinitions.Ballot(contests_list)
 	return ballot
 
 # Create random noise with a dimensions matching that of the ballot.
@@ -56,7 +57,7 @@ def create_fake_marked_contest(contest):
 		selected.add(random.randint(0, len(contest.options) - 1))
 
 	# MarkedContests needs selected indicies to be a list, not a set.
-	marked = Election.MarkedContest(contest, ballot_image, list(selected))
+	marked = MarkedBallots.MarkedContest(contest, ballot_image, list(selected))
 
 	# For all the options that were selected for this contest, mark the contest.
 	for which in marked.actual_vote_index:
@@ -76,7 +77,7 @@ def create_fake_marked_ballot(ballot):
 	marked = []
 	for index, contest in enumerate(ballot.contests):
 		marked.append(create_fake_marked_contest(contest))
-	return Election.MarkedBallot(ballot, marked)
+	return MarkedBallots.MarkedBallot(ballot, marked)
 
 def create_fake_marked_ballots(ballot, count):
 	return [create_fake_marked_ballot(ballot) for i in range(count)]
