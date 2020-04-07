@@ -22,14 +22,14 @@ def generate_default_settings():
 	ret['optimizer'] 		= 'adam'
 
 	# Model hyperparameters
-	ret['learning_rate'] 	= 0.0001
+	ret['learning_rate'] 	= 0.001
 	ret['l2_lambda'] 		= 0.01
 	ret['dropout'] 			= 0.1
 	ret['epochs'] 			= 10
-	ret['batch_size']		= 20
+	ret['batch_size']		= 10
 
 	# Determine how to pad / cut the images
-	ret['target_resolution']	= (64, 64)
+	ret['target_resolution']	= (128, 128)
 	# Number of channels coming out of the rescaler.
 	ret['target_channels']		= 1
 

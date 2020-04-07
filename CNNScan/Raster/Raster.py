@@ -1,5 +1,5 @@
-from Ballot import BallotDefinitions, MarkedBallots
-import Raster.Mark
+from CNNScan.Ballot import BallotDefinitions, MarkedBallots
+import CNNScan.Raster.Mark
 class Rasterizer:
 	def __init__(self, ballot:BallotDefinitions.Ballot, mark_database=None):
 		self.ballot = ballot

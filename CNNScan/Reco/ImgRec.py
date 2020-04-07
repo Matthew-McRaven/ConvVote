@@ -10,9 +10,9 @@ import torch
 import torch.nn as nn
 from torchvision import datasets, transforms
 
-import Reco.Settings as Settings
-import utils as utils
-import Ballot.BallotDefinitions, Ballot.MarkedBallots
+import CNNScan.Reco.Settings as Settings
+import CNNScan.utils as utils
+from CNNScan.Ballot import BallotDefinitions, MarkedBallots
 import math
 
 class ImageRecognitionCore(nn.Module):
@@ -121,8 +121,11 @@ class ImageRescaler(nn.Module):
 	def forward(self, contest_number, batches, images):
 
 		# TODO: Perform pooling, interpolation, and nothing depending on the size ratios of in to out resolution.
+		#print(images.shape)
 		out = self.pad[contest_number](images)
+		#print(out.shape)
 		out = self.pool[contest_number](out)
+		#print(out.shape)
 		return out
 
 	def output_size(self):
@@ -141,8 +144,8 @@ class ImageRescaler(nn.Module):
 			# Must check that image being passed in is a power of 2, else pooling will fail.
 			x_in_res, pad_top, pad_bottom = utils.pad_nearest_pow2(imagex, self.x_out_res)
 			y_in_res, pad_left, pad_right = utils.pad_nearest_pow2(imagey, self.y_out_res)
-			
-			#print(pad_left, pad_right, pad_bottom, pad_top)
+			print(imagex, imagey)
+			print(pad_left, pad_right, pad_bottom, pad_top)
 			self.pad.append(nn.ZeroPad2d((pad_left, pad_right, pad_bottom, pad_top)))
 			# Since we've picked input resolutions, output resolutions that are powers of 2,
 			# ratios should be whole numbers (even without rounding).
@@ -216,7 +219,7 @@ class BallotRecognizer(nn.Module):
 		outputs = outputs.view(batches, -1)
 		return outputs
 	
-	def resize_for_election(self, ballot: Ballot.BallotDefinitions.Ballot,):
+	def resize_for_election(self, ballot: BallotDefinitions.Ballot,):
 		self.modules['rescaler'].resize(ballot)
 		self.modules['labeler'].resize(ballot)
 
@@ -306,13 +309,15 @@ def evaluate_one_batch(model, contest_number, criterion, images, labels):
 			#print(value, output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
 			correct_so_far = True
 			for inner_index, inner_value in enumerate(value):
-				#print(value, output[index])
+				
 				# Labels are eof {0,1}. 1 indicates a vote for an option, 0 is not.
 				# The output of the network is a vector of floats in the range [0,1], created by a sigmoid.
 				# If the output and label are close in value, the network correctly chose the label.
 				# If the difference between the output and labels is greater than half of the range (i.e. .5),
 				# then the network made a mistake on this contest, and the contest should be marked as incorrect. 
-				if inner_value - output[index][inner_index] > .5:
+				#print(inner_value, output[index][inner_index], "    ", end=" ")
+				if abs(inner_value - output[index][inner_index]) > .5:
+					#print("wrong!", end="")
 					correct_so_far = False
 					break
 

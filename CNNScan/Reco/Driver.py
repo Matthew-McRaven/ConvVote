@@ -1,7 +1,9 @@
-from Reco import ElectionFaker
-from Reco import ImgRec
-from Reco import Settings as Settings
 import torch
+
+from CNNScan.Reco import ElectionFaker
+from CNNScan.Reco import ImgRec
+from CNNScan.Reco import Settings
+import CNNScan.Samples
 
 # Load an election definition file from the disk.
 # For now, generates a random election outcome.
@@ -10,25 +12,33 @@ def load_ballot_files(config):
 	return ballot
 
 # Create training data using fake ballots.
-def get_train(config, ballot):
-	marked_ballots = ElectionFaker.create_fake_marked_ballots(ballot, 400)
+def get_train(config, ballot, module):
+	#marked_ballots = ElectionFaker.create_fake_marked_ballots(ballot, 400)
+	marked_ballots = CNNScan.Samples.utils.make_sample_ballots(module, ballot, number = 100)
 	n = config['batch_size']
 	return [marked_ballots[i * n:(i + 1) * n] for i in range((len(marked_ballots) + n - 1) // n )]
 
 # Create testing data.
-def get_test(config, ballot):
-	return get_train(config, ballot)
+def get_test(config, ballot, module):
+	return get_train(config, ballot, module)
 
 
 # Train a neural network to recognize the results of a single contest for a single election
-def contest_entry_point(config):
+def contest_entry_point(config, module=CNNScan.Samples.Oregon):
 	# TODO: Load real election information from a file.
-	ballot = load_ballot_files(config)
+	""" 
+	Using CNNScan.Samples.Random will generate completely random ballots marked with black bars.
+	Using CNNScan.Samples.Oregon will attempt to fill in real Oregon ballots correctly.
+	"""
+	# module = CNNScan.Samples.Oregon 
+	# module = CNNScan.Samples.Random 
+	ballot = module.get_sample_ballot()
+	#config['target_channels'] = 1
 	# TODO: scale BallotRecognizer based on election output size
 	model = ImgRec.BallotRecognizer(config, ballot)
 	print(model)
-	model = ImgRec.train_single_ballot(model, config, ballot, get_train(config, ballot), 
-	 get_test(config, ballot))
+	model = ImgRec.train_single_ballot(model, config, ballot, get_train(config, ballot, module), 
+	 get_test(config, ballot, module))
 	# TODO: write model to file
 
 	# Cleanup memory allocated by Torch

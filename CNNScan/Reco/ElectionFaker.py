@@ -6,7 +6,7 @@ from faker import Faker
 import numpy as np
 import numpy.random
 
-from Ballot import BallotDefinitions, MarkedBallots
+from CNNScan.Ballot import BallotDefinitions, MarkedBallots
 
 # Create a single, fixed fake race with 4 candidates.
 def create_fake_contest(contest_index=0, min_candidate=1, max_candidates=5, min_xy_per_candidate=(18,8), max_xy_per_candidate=(64,16)):
