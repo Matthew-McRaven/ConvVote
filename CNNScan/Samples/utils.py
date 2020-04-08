@@ -20,7 +20,7 @@ def load_template_image(package, contest:BallotDefinitions.Contest) -> np.ndarra
 	weights = np.asarray([1,1,1,0])
 	rval = np.average(data, axis=-1, weights=weights,returned=True)[0]
 	#print(rval.shape)
-	real_data = np.transpose(rval)
+	real_data = rval #np.transpose(rval)
 	"""	print(rval)
 	for x in range(data.shape[1]):
 		for y in range (data.shape[0]):
@@ -47,24 +47,13 @@ def create_fake_marked_contest(package, contest:BallotDefinitions.Contest):
 	# For all the options that were selected for this contest, mark the contest.
 	for which in marked.actual_vote_index:
 		location = contest.options[which].bounding_rect
-		for x in range(location[0], location[2]):
-			for y in range(location[1], location[3]):
-				marked.image[x][y]=0
+		for x in range(location.upper_left.x, location.lower_right.x):
+			for y in range(location.upper_left.y, location.lower_right.y):
+				marked.image[y][x]=0
 				#marked.image[y][x][1]=0
 				#marked.image[y][x][2]=0
 	return marked
 
-def make_sample_ballots(package, ballot:BallotDefinitions.Ballot, number=100) -> List[MarkedBallots.MarkedBallot]:
-	ballots = []
-	for i in range(number):
-		contests = []
-		for contest in ballot.contests:
-			latest = create_fake_marked_contest(package, contest)
-			contests.append(latest)
-			#plt.title(f'{i}-th copy of Contest {contest.index}')
-			#plt.xlabel(f'Recorded as a vote for {latest.actual_vote_index}')
-			#plt.imshow(latest.image, cmap='gray', interpolation='nearest')
-			#plt.show()
-		new_ballot = MarkedBallots.MarkedBallot(ballot, contests)
-		ballots.append(new_ballot)
+def make_sample_ballots(module, ballot:BallotDefinitions.Ballot, count=100) -> List[MarkedBallots.MarkedBallot]:
+	ballots =  module.create_marked_ballots(ballot, count)
 	return ballots

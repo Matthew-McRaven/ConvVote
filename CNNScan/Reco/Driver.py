@@ -14,7 +14,7 @@ def load_ballot_files(config):
 # Create training data using fake ballots.
 def get_train(config, ballot, module):
 	#marked_ballots = ElectionFaker.create_fake_marked_ballots(ballot, 400)
-	marked_ballots = CNNScan.Samples.utils.make_sample_ballots(module, ballot, number = 100)
+	marked_ballots = CNNScan.Samples.utils.make_sample_ballots(module, ballot, count=100)
 	n = config['batch_size']
 	return [marked_ballots[i * n:(i + 1) * n] for i in range((len(marked_ballots) + n - 1) // n )]
 

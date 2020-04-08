@@ -139,11 +139,11 @@ class ImageRescaler(nn.Module):
 	def resize(self, ballot):
 		for contest in ballot.contests:
 			# Determine the height, width of each image by subtracting the bounding rectangles from each other.
-			imagex = contest.bounding_rect[2] - contest.bounding_rect[0]
-			imagey = contest.bounding_rect[3] - contest.bounding_rect[1]
+			imagex = contest.bounding_rect.lower_right.x - contest.bounding_rect.upper_left.x
+			imagey = contest.bounding_rect.lower_right.y - contest.bounding_rect.upper_left.y
 			# Must check that image being passed in is a power of 2, else pooling will fail.
-			x_in_res, pad_top, pad_bottom = utils.pad_nearest_pow2(imagex, self.x_out_res)
-			y_in_res, pad_left, pad_right = utils.pad_nearest_pow2(imagey, self.y_out_res)
+			x_in_res, pad_left, pad_right = utils.pad_nearest_pow2(imagex, self.x_out_res)
+			y_in_res, pad_top, pad_bottom = utils.pad_nearest_pow2(imagey, self.y_out_res)
 			print(imagex, imagey)
 			print(pad_left, pad_right, pad_bottom, pad_top)
 			self.pad.append(nn.ZeroPad2d((pad_left, pad_right, pad_bottom, pad_top)))

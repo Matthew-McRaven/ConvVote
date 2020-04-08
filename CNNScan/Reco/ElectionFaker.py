@@ -6,10 +6,10 @@ from faker import Faker
 import numpy as np
 import numpy.random
 
-from CNNScan.Ballot import BallotDefinitions, MarkedBallots
+from CNNScan.Ballot import BallotDefinitions, MarkedBallots, Positions
 
 # Create a single, fixed fake race with 4 candidates.
-def create_fake_contest(contest_index=0, min_candidate=1, max_candidates=5, min_xy_per_candidate=(18,8), max_xy_per_candidate=(64,16)):
+def create_fake_contest(contest_index=0, min_candidate=1, max_candidates=1, min_xy_per_candidate=(18,8), max_xy_per_candidate=(64,16)):
 	min_x, min_y = min_xy_per_candidate
 	max_x, max_y = max_xy_per_candidate
 	candidate_number = random.randint(min_candidate, max_candidates)
@@ -22,12 +22,13 @@ def create_fake_contest(contest_index=0, min_candidate=1, max_candidates=5, min_
 	y_rolling = 0
 	for i in range(candidate_number):
 		y_size = random.randint(min_y, max_y)
-		bound = (0, y_rolling, x_size, y_rolling+y_size)
+		bound = Positions.to_pixel_pos(0, y_rolling, x_size, y_rolling+y_size)
 		options.append(BallotDefinitions.Option(i, fake.name(), bounding_rect=(bound)))
 		locations.append(bound)
 		y_rolling += y_size
 	print(f"{candidate_number} candidates, with a ballot that is {x_size}x{y_rolling}")
-	contest = BallotDefinitions.Contest(contest_index, name=name, description=description, options=options, bounding_rect=(0,0, x_size, y_rolling))
+	contest = BallotDefinitions.Contest(contest_index, name=name, description=description,
+		options=options, bounding_rect=Positions.to_pixel_pos(0,0, x_size, y_rolling))
 	return contest
 
 def create_fake_ballot(min_contests=3, max_contests=3)->BallotDefinitions.Ballot:
@@ -42,7 +43,7 @@ def create_fake_ballot(min_contests=3, max_contests=3)->BallotDefinitions.Ballot
 
 # Create random noise with a dimensions matching that of the ballot.
 def create_fake_contest_image(contest):
-	r_data = numpy.random.random((contest.bounding_rect[2], contest.bounding_rect[3]))   # Test data
+	r_data = numpy.random.random((contest.bounding_rect.lower_right.x, contest.bounding_rect.lower_right.y))   # Test data
 	return r_data
 
 # Create a fake ballot image, and select a random candiate to win.
@@ -62,9 +63,14 @@ def create_fake_marked_contest(contest):
 	# For all the options that were selected for this contest, mark the contest.
 	for which in marked.actual_vote_index:
 		location = contest.options[which].bounding_rect
-		for x in range(location[0], location[2]):
-			for y in range(location[1], location[3]):
+		for x in range(location.upper_left.x, location.lower_right.x):
+			for y in range(location.upper_left.y, location.lower_right.y):
 				marked.image[x][y]=0
+	# Pictures are stored in column major order, but numpy arrays are stored in row major order.
+	# Must transpose for both kinds of images to compute correctly.
+	# See:
+	# 	https://stackoverflow.com/questions/19016144/conversion-between-pillow-image-object-and-numpy-array-changes-dimension
+	marked.image = np.transpose(marked.image)
 	return marked
 
 
