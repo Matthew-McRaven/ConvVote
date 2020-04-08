@@ -1,3 +1,14 @@
+"""
+This module contains data classes for representing picture coordinates in multiple coordinate systems.
+
+Pixel points are absolute, but will become incorrect if an image is rescaled. These are necessary
+when applying manipulations to images. For example, applying a mark to ballot requires having 
+the pixel cooridnates of the box to fill.
+
+Pixel coordinates are not suitable for describing an image in a PDF format, because a PDF may be rendered at any scale.
+For these scale-invariant formats, there are relative positions. Relative positions use percentages to describe locations.
+The width and height of a document are each 1.0, and a relative point specifies a location based on the % size of the document.
+"""
 from dataclasses import dataclass
 from typing import Dict, Tuple, Sequence
 
