@@ -12,7 +12,11 @@ def load_ballot_files(config):
 # Create training data using fake ballots.
 def get_train(config, ballot, module):
 	#marked_ballots = ElectionFaker.create_fake_marked_ballots(ballot, 400)
-	marked_ballots = CNNScan.Samples.utils.make_sample_ballots(module, ballot, count=100)
+	marked_ballots = CNNScan.Samples.utils.make_sample_ballots(module, ballot, count=10)
+	for ballot in marked_ballots:
+		for contest in ballot.marked_contest:
+			# Use 127.5 sine it is 255/2, which is our max value.
+			 contest.image = 1.0 - (contest.image / 127.5)
 	n = config['batch_size']
 	return [marked_ballots[i * n:(i + 1) * n] for i in range((len(marked_ballots) + n - 1) // n )]
 
@@ -35,8 +39,18 @@ def contest_entry_point(config, module=CNNScan.Samples.Oregon):
 	# TODO: scale BallotRecognizer based on election output size
 	model = ImgRec.BallotRecognizer(config, ballot)
 	print(model)
-	model = ImgRec.train_single_ballot(model, config, ballot, get_train(config, ballot, module), 
-	 get_test(config, ballot, module))
+	model = ImgRec.train_single_ballot(model, config, ballot, get_train(config, ballot, module), get_test(config, ballot, module))
+
+	# Display a single sample ballot to visualize if training was succesful.
+	render_data = get_test(config, ballot, module)
+	CNNScan.Reco.ImgRec.evaluate_ballots(model, ballot, render_data, config, add_to_ballots=True)
+
+	# Must invert data data (255 - data) to retrieve original image.
+	for contest in render_data[0][0].marked_contest:
+		contest.image = 255 - ((1.0 + contest.image) * 127.5)//1
+
+	#CNNScan.utils.show_ballot(render_data[0][0])
+	
 	# TODO: write model to file
 
 	# Cleanup memory allocated by Torch

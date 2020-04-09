@@ -5,7 +5,7 @@ class MarkedContest:
 		self.contest = contest
 		self.image = image
 		self.actual_vote_index = actual_vote_index
-		self.computed_vote_index = [int()]
+		self.computed_vote_index = []
 
 class MarkedBallot:
 	def __init__(self, ballot, marked_contests):

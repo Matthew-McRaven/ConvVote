@@ -47,7 +47,8 @@ def create_fake_contest_image(contest):
 	# Must transpose for both kinds of images to compute correctly.
 	# See:
 	# 	https://stackoverflow.com/questions/19016144/conversion-between-pillow-image-object-and-numpy-array-changes-dimension
-	r_data = numpy.random.random((contest.bounding_rect.lower_right.y, contest.bounding_rect.lower_right.x))   # Test data
+	# Additionally, PNG's contain data in [0, 255], so we must create an int ditribution to approximate this.
+	r_data = numpy.random.randint(0,255, (contest.bounding_rect.lower_right.y, contest.bounding_rect.lower_right.x))   # Test data
 	return r_data
 
 # Create a fake ballot image, and select a random candiate to win.

@@ -27,11 +27,17 @@ class PixelPosition:
 	upper_left:PixelPoint = PixelPoint()
 	lower_right:PixelPoint = PixelPoint()
 
+	def size(self) -> (int, int):
+		return (self.lower_right.x - self.upper_left.x, self.lower_right.y - self.upper_left.y)
+
 @dataclass
 class RelativePosition:
 	upper_left:RelativePoint = RelativePoint()
 	lower_right:RelativePoint = RelativePoint()
 	page:int = 1
+	
+	def size(self) -> (int, int):
+		return (self.lower_right.x - self.upper_left.x, self.lower_right.y - self.upper_left.y)
 	
 # Construct a Pixel-based bounding rectangle from four points.
 def to_pixel_pos(x0, y0, x1, y1):
