@@ -3,7 +3,7 @@ import typing
 import numpy
 
 from CNNScan.Ballot import BallotDefinitions, MarkedBallots
-import CNNScan.Raster.Mark
+import CNNScan.Mark
 
 """
 (Unimplemented) helper class to apply "marks" to regions on a contest.

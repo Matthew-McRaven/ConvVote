@@ -5,6 +5,7 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import collections
+import typing
 
 import torch
 import torch.nn as nn
@@ -13,6 +14,7 @@ from torchvision import datasets, transforms
 import CNNScan.Reco.Settings as Settings
 import CNNScan.utils as utils
 from CNNScan.Ballot import BallotDefinitions, MarkedBallots
+import CNNScan.utils
 import math
 
 class ImageRecognitionCore(nn.Module):
@@ -327,22 +329,27 @@ def evaluate_one_batch(model, contest_number, criterion, images, labels):
 	return (output, batch_test_images, batch_test_loss, batch_test_correct)
 
 # Evaluate a list of marked ballots against an already trained model with a particular configuration
-def evaluate_ballots(model, ballot, marked_ballot_list, config, criterion=None, add_to_ballots=False):
+def evaluate_ballots(model, ballot, marked_ballot_list : typing.List[typing.List[MarkedBallots.MarkedBallot]], config, criterion=None, add_to_ballots=False):
 	if criterion is None:
 		criterion = Settings.get_criterion(config)
 	(test_images, test_loss, test_correct) = (0,0,0)
 	with torch.no_grad():
-		for marked_ballots in marked_ballot_list:
+		for marked_ballots_batch in marked_ballot_list:
 			for contest_idx in range(len(ballot.contests)):
 				number_candidates = len(ballot.contests[contest_idx].options)
 				# Must extract images, labels from "batch" variable. Move to CUDA device.
-				images = utils.ballot_images_to_tensor(marked_ballots, contest_idx, config)
-				labels = utils.ballot_labels_to_tensor(marked_ballots, contest_idx, config, number_candidates)
+				images = utils.ballot_images_to_tensor(marked_ballots_batch, contest_idx, config)
+				labels = utils.ballot_labels_to_tensor(marked_ballots_batch, contest_idx, config, number_candidates)
 				# TODO: Ensure all votes in a batch have the same index.
 				(output, images, loss, correct) = evaluate_one_batch(model, contest_idx, criterion, images, labels)
 				if add_to_ballots:
-					#TODO: Add any items that were voted for to MarkedContest.computed_vote_index
-					pass
+					for (index, output_labels) in enumerate(output):
+						#print(value, output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
+						for inner_index, inner_value in enumerate(output_labels):
+							# If the difference between the output and labels is greater than half of the range (i.e. .5),
+							# the network correctly chose the label for THIS option. No inference may be made about the whole contest.
+							if inner_value > .5:
+								marked_ballots_batch[index].marked_contest[contest_idx].computed_vote_index.append(inner_index)
 				test_images += images
 				test_loss += loss.data.item()
 				test_correct += correct
