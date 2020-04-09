@@ -1,6 +1,5 @@
 import torch
 
-from CNNScan.Reco import ElectionFaker
 from CNNScan.Reco import ImgRec
 from CNNScan.Reco import Settings
 import CNNScan.Samples
@@ -8,8 +7,7 @@ import CNNScan.Samples
 # Load an election definition file from the disk.
 # For now, generates a random election outcome.
 def load_ballot_files(config):
-	ballot = ElectionFaker.create_fake_ballot()
-	return ballot
+	pass
 
 # Create training data using fake ballots.
 def get_train(config, ballot, module):

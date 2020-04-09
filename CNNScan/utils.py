@@ -38,10 +38,16 @@ def pad_nearest_pow2(number, at_least_this=1):
 def image_to_tensor(image):
 	#TODO: apply image normalization.
 	return torch.from_numpy(image)
-	
+
 # Visualize marked ballots.
-def show_ballot(marked:MarkedBallots.MarkedContest):
-	plt.imshow(marked.image, cmap='gray', interpolation='nearest')
+def show_ballot(marked:MarkedBallots.MarkedBallot):
+	count = len(marked.marked_contest)
+	fig = plt.figure()
+	for i, contest in enumerate(marked.marked_contest):
+		ax = fig.add_subplot( math.ceil(count/5),5, i+1)
+		ax.set_title(f'Contest {contest.contest.index}')
+		ax.set_xlabel(f'Vote for {contest.actual_vote_index}. Recorded as {contest.computed_vote_index}')
+		ax.imshow(contest.image, cmap='gray', interpolation='nearest')
 	plt.show()
 
 def ballot_images_to_tensor(ballot_list, contest_idx, config):

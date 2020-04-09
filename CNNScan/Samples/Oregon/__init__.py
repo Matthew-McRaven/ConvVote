@@ -202,15 +202,6 @@ c24_opt.append(bd.Option(5, "F", to_pixel(70, 487, 120, 521)))
 c24 = bd.Contest(24, "c24", "", c24_opt, to_pixel(0, 0, 638, 544), "c24.png")
 contests.append(c24)
 
-"""
-# Contest xx
-cxx_opt = []
-cxx_opt.append(bd.Option(0, "A", (70, 846, 120, 876)))
-cxx_opt.append(bd.Option(1, "B", (70, 910, 120, 940)))
-cxx = bd.Contest(xx, "cxx", "", cxx_opt, (0, 0, 638, 970), "cxx.png")
-contests.append(cxx)
-"""
-
 # Wrap contests in a ballot definition
 ballot = bd.Ballot(contests=contests, ballot_file="")
 
@@ -219,12 +210,13 @@ def get_sample_ballot():
 	global ballot
 	return ballot
 
-def create_marked_ballots(ballot, count=0):
+def create_marked_ballots(ballot, mark_database, count=0):
 	ballots = []
 	for i in range(count):
 		contests = []
 		for contest in ballot.contests:
-			latest = CNNScan.Samples.utils.create_fake_marked_contest(CNNScan.Samples.Oregon, contest)
+			mark = mark_database.get_random_mark()
+			latest = CNNScan.Samples.utils.create_fake_marked_contest(CNNScan.Samples.Oregon, mark, contest)
 			contests.append(latest)
 		new_ballot = CNNScan.Ballot.MarkedBallots.MarkedBallot(ballot, contests)
 		ballots.append(new_ballot)
