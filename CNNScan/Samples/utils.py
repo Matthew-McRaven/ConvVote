@@ -48,6 +48,6 @@ def create_fake_marked_contest(package, mark, contest:BallotDefinitions.Contest)
 
 def make_sample_ballots(module, ballot:BallotDefinitions.Ballot, count=100) -> List[MarkedBallots.MarkedBallot]:
 	mark_db = CNNScan.Mark.MarkDatabase()
-	mark_db.insert_mark(CNNScan.Mark.BoxMark())
+	mark_db.insert_mark(CNNScan.Mark.XMark())
 	ballots =  module.create_marked_ballots(ballot, mark_db, count)
 	return ballots

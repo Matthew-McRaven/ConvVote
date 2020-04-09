@@ -7,6 +7,8 @@ import numpy.random
 import CNNScan.Ballot.MarkedBallots
 import CNNScan.Mark.Marks
 
+from PIL import Image, ImageDraw
+
 class MarkDatabase:
 	def __init__(self):
 		self.marks = []
@@ -17,6 +19,19 @@ class MarkDatabase:
 
 	def get_random_mark(self):
 		return self.marks[random.randint(0, len(self.marks)-1)]
+
+class XMark:
+	def generate(self, image: np.ndarray, mark_shape: CNNScan.Ballot.Positions.PixelPosition) -> np.ndarray:
+		im = Image.new("L",size=mark_shape.size())
+		draw = ImageDraw.Draw(im)
+		draw.line((0, 0) + im.size, fill=128)
+		draw.line((0, im.size[1], im.size[0], 0), fill=128)
+		output = np.array(im)
+		return output
+
+	def __call__(self, *args, **kwargs):
+		return self.generate(*args, **kwargs)
+
 
 class BoxMark:
 	def generate(self, image: np.ndarray, mark_shape: CNNScan.Ballot.Positions.PixelPosition) -> np.ndarray:
