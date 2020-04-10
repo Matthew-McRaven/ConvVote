@@ -4,6 +4,8 @@ from CNNScan.Reco import ImgRec
 from CNNScan.Reco import Settings
 import CNNScan.Samples
 
+import torch.utils.data
+import torchvision.transforms
 # Load an election definition file from the disk.
 # For now, generates a random election outcome.
 def load_ballot_files(config):
@@ -11,14 +13,16 @@ def load_ballot_files(config):
 
 # Create training data using fake ballots.
 def get_train(config, ballot, module):
-	#marked_ballots = ElectionFaker.create_fake_marked_ballots(ballot, 400)
-	marked_ballots = CNNScan.Samples.utils.make_sample_ballots(module, ballot, count=10)
-	for ballot in marked_ballots:
-		for contest in ballot.marked_contest:
-			# Use 127.5 sine it is 255/2, which is our max value.
-			 contest.image = 1.0 - (contest.image / 127.5)
-	n = config['batch_size']
-	return [marked_ballots[i * n:(i + 1) * n] for i in range((len(marked_ballots) + n - 1) // n )]
+	# TODO: Make normalization a parameter instead of hardcoded.
+	transforms=torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
+											   torchvision.transforms.Lambda(lambda x: x.float()),
+											   torchvision.transforms.Normalize((1,),(127.5,))
+											   #torchvision.transforms.Lambda(lambda x: (1.0 - (x / 127.5)).float())
+											   ])
+	data = CNNScan.Samples.utils.get_sample_dataset(module, ballot, count=100, transform=transforms)
+	#print(data.at(0).marked_contest[0].tensor)
+	load = torch.utils.data.DataLoader(data, batch_size=config['batch_size'], shuffle=True, )
+	return load
 
 # Create testing data.
 def get_test(config, ballot, module):
@@ -28,12 +32,6 @@ def get_test(config, ballot, module):
 # Train a neural network to recognize the results of a single contest for a single election
 def contest_entry_point(config, module=CNNScan.Samples.Oregon):
 	# TODO: Load real election information from a file.
-	""" 
-	Using CNNScan.Samples.Random will generate completely random ballots marked with black bars.
-	Using CNNScan.Samples.Oregon will attempt to fill in real Oregon ballots correctly.
-	"""
-	# module = CNNScan.Samples.Oregon 
-	# module = CNNScan.Samples.Random 
 	ballot = module.get_sample_ballot()
 	#config['target_channels'] = 1
 	# TODO: scale BallotRecognizer based on election output size
@@ -43,13 +41,10 @@ def contest_entry_point(config, module=CNNScan.Samples.Oregon):
 
 	# Display a single sample ballot to visualize if training was succesful.
 	render_data = get_test(config, ballot, module)
+	#print(render_data)
 	CNNScan.Reco.ImgRec.evaluate_ballots(model, ballot, render_data, config, add_to_ballots=True)
 
-	# Must invert data data (255 - data) to retrieve original image.
-	for contest in render_data[0][0].marked_contest:
-		contest.image = 255 - ((1.0 + contest.image) * 127.5)//1
-
-	#CNNScan.utils.show_ballot(render_data[0][0])
+	CNNScan.utils.show_ballot(render_data.dataset.at(0))
 	
 	# TODO: write model to file
 

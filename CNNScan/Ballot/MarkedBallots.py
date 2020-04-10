@@ -4,6 +4,7 @@ class MarkedContest:
 	def __init__(self, contest=None, image=None, actual_vote_index=[]):
 		self.contest = contest
 		self.image = image
+		self.tensor = None
 		self.actual_vote_index = actual_vote_index
 		self.computed_vote_index = []
 

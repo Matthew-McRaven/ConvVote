@@ -50,14 +50,8 @@ def show_ballot(marked:MarkedBallots.MarkedBallot):
 		ax.imshow(contest.image, cmap='gray', interpolation='nearest')
 	plt.show()
 
-def ballot_images_to_tensor(ballot_list, contest_idx, config):
-	return cuda(torch.tensor([x.marked_contest[contest_idx].image for x in ballot_list], dtype=torch.float32), config)
-
 def labels_to_vec(labels, length):
 	ret = [0]*length
 	for label in labels:
 		 ret[label] = 1
 	return ret
-
-def ballot_labels_to_tensor(ballot_list, contest_idx, config, number_candidates):
-	return cuda(torch.tensor([labels_to_vec(x.marked_contest[contest_idx].actual_vote_index, number_candidates) for x in ballot_list], dtype=torch.float32), config)

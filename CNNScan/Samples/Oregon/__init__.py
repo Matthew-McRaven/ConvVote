@@ -6,6 +6,8 @@ The ballot is available from:
 import CNNScan.Ballot.BallotDefinitions  
 import CNNScan.Samples.utils
 import CNNScan.Samples.Oregon
+
+import CNNScan.Reco.Load
 bd = CNNScan.Ballot.BallotDefinitions 
 to_pixel = CNNScan.Ballot.Positions.to_pixel_pos
 contests = []
@@ -204,22 +206,12 @@ contests.append(c24)
 
 # Wrap contests in a ballot definition
 ballot = bd.Ballot(contests=contests, ballot_file="")
-
 # Provide interface to access ballot.
 def get_sample_ballot():
 	global ballot
+	for contest in ballot.contests:
+		if contest.image is None:
+			contest.image = CNNScan.Samples.utils.load_template_image(CNNScan.Samples.Oregon, contest)
 	return ballot
-
-def create_marked_ballots(ballot, mark_database, count=0):
-	ballots = []
-	for i in range(count):
-		contests = []
-		for contest in ballot.contests:
-			mark = mark_database.get_random_mark()
-			latest = CNNScan.Samples.utils.create_fake_marked_contest(CNNScan.Samples.Oregon, mark, contest)
-			contests.append(latest)
-		new_ballot = CNNScan.Ballot.MarkedBallots.MarkedBallot(ballot, contests)
-		ballots.append(new_ballot)
-	return ballots
-
+	
 del bd

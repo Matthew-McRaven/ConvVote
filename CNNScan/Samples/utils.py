@@ -25,29 +25,7 @@ def load_template_image(package, contest:BallotDefinitions.Contest) -> np.ndarra
 
 	return real_data
 
-# Create a fake ballot image, and select a random candiate to win.
-# Black out all the pixels corresponding to the location on the ballot representing the candidate.
-def create_fake_marked_contest(package, mark, contest:BallotDefinitions.Contest):
-
-	if contest.image is None:
-		contest.image = load_template_image(package, contest)
-	ballot_image = np.copy(contest.image)
-	# Determine probability of selecting no, one, or multiple options per contest
-	count = np.random.choice([1], p=[1])
-	# Generate random selections on ballot. Use set to avoid duplicates.
-	selected = set()
-	for i in range(count):
-		selected.add(random.randint(0, len(contest.options) - 1))
-
-	# MarkedContests needs selected indicies to be a list, not a set.
-	marked = MarkedBallots.MarkedContest(contest, ballot_image, list(selected))
-
-	# For all the options that were selected for this contest, mark the contest.
-	CNNScan.Mark.apply_marks(marked, mark)
-	return marked
-
-def make_sample_ballots(module, ballot:BallotDefinitions.Ballot, count=100) -> List[MarkedBallots.MarkedBallot]:
+def get_sample_dataset(module, ballot:BallotDefinitions.Ballot, count=100, transform=None):
 	mark_db = CNNScan.Mark.MarkDatabase()
 	mark_db.insert_mark(CNNScan.Mark.XMark())
-	ballots =  module.create_marked_ballots(ballot, mark_db, count)
-	return ballots
+	return CNNScan.Reco.Load.ImageDataSet(ballot, mark_db, count, transform=transform)

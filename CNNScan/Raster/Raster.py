@@ -44,7 +44,7 @@ def rasterize_ballot_template(ballot : BallotDefinitions.Ballot, directory : str
 	ret_val = BallotDefinitions.Ballot(converted_contests, ballot.ballot_file)
 
 	# Assert postconditions that all positions are now absolute, and that each contest has an image.
-	for contest in ballot.contests:
+	for contest in ret_val.contests:
 		assert isinstance(contest.bounding_rect, CNNScan.Ballot.Positions.PixelPosition)
 		assert contest.image is not None
 		for option in contest.options:

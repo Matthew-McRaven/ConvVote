@@ -228,7 +228,7 @@ class BallotRecognizer(nn.Module):
 def train_single_contest(model, config, train_data, test_data, number_candidates):
 	raise NotImplementedError()
 
-def train_single_ballot(model, config, ballot, train_data, test_data):
+def train_single_ballot(model, config, ballot, train_loader, test_loader):
 	if config['cuda']:
 		model = utils.cuda(model, config)
 	
@@ -244,16 +244,15 @@ def train_single_ballot(model, config, ballot, train_data, test_data):
 		batch_train_images, batch_train_loss = 0, 0
 		
 		model.train()
-		for marked_ballots in train_data:
+		for idx, train_labels, train_images in train_loader:
 			for contest_idx in range(len(ballot.contests)):
-				number_candidates = len(ballot.contests[contest_idx].options)
 				# Must extract images, labels from "batch" variable. Move to CUDA device.
-				images = utils.ballot_images_to_tensor(marked_ballots, contest_idx, config)
-				labels = utils.ballot_labels_to_tensor(marked_ballots, contest_idx, config, number_candidates)
+				tensor_images = utils.cuda(train_images[contest_idx], config)
+				tensor_labels = utils.cuda(train_labels[contest_idx], config)
 				# TODO: Ensure all votes in a batch have the same index.
 				#print(images)
 				optimizer.zero_grad()
-				(output, images, loss, correct) = evaluate_one_batch(model, contest_idx, criterion, images, labels)
+				(output, images, loss, correct) = evaluate_one_batch(model, contest_idx, criterion, tensor_images, tensor_labels)
 				batch_train_images += images
 				batch_train_loss += loss
 				#batch_test_correct += correct
@@ -271,14 +270,14 @@ def train_single_ballot(model, config, ballot, train_data, test_data):
 					pass
 
 				# Clean up memory, since CUDA seems to leak memory when running for a long time.
-				del images
-				del labels
+				del tensor_images
+				del tensor_labels
 				del loss
 				del output
 				torch.cuda.empty_cache()
 
 		model.eval()
-		(batch_test_images, batch_test_loss, batch_test_correct) = evaluate_ballots(model, ballot, test_data, config, criterion)
+		(batch_test_images, batch_test_loss, batch_test_correct) = evaluate_ballots(model, ballot, test_loader, config, criterion)
 
 		print(f"Guessed {batch_test_correct} ballots out of {batch_test_images} total for {100*batch_test_correct/batch_test_images}% accuracy")
 	return model
@@ -329,19 +328,19 @@ def evaluate_one_batch(model, contest_number, criterion, images, labels):
 	return (output, batch_test_images, batch_test_loss, batch_test_correct)
 
 # Evaluate a list of marked ballots against an already trained model with a particular configuration
-def evaluate_ballots(model, ballot, marked_ballot_list : typing.List[typing.List[MarkedBallots.MarkedBallot]], config, criterion=None, add_to_ballots=False):
+def evaluate_ballots(model, ballot, test_loader, config, criterion=None, add_to_ballots=False):
 	if criterion is None:
 		criterion = Settings.get_criterion(config)
 	(test_images, test_loss, test_correct) = (0,0,0)
 	with torch.no_grad():
-		for marked_ballots_batch in marked_ballot_list:
+		for selected_ballots, data_labels, data_images in test_loader:
 			for contest_idx in range(len(ballot.contests)):
-				number_candidates = len(ballot.contests[contest_idx].options)
+				# Must subscript with the contest index, since images, labels contain all images and labels contained on a ballot.
 				# Must extract images, labels from "batch" variable. Move to CUDA device.
-				images = utils.ballot_images_to_tensor(marked_ballots_batch, contest_idx, config)
-				labels = utils.ballot_labels_to_tensor(marked_ballots_batch, contest_idx, config, number_candidates)
+				tensor_images = utils.cuda(data_images[contest_idx], config)
+				tensor_labels = utils.cuda(data_labels[contest_idx], config)
 				# TODO: Ensure all votes in a batch have the same index.
-				(output, images, loss, correct) = evaluate_one_batch(model, contest_idx, criterion, images, labels)
+				(output, images, loss, correct) = evaluate_one_batch(model, contest_idx, criterion, tensor_images, tensor_labels)
 				if add_to_ballots:
 					for (index, output_labels) in enumerate(output):
 						#print(value, output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
@@ -349,14 +348,16 @@ def evaluate_ballots(model, ballot, marked_ballot_list : typing.List[typing.List
 							# If the difference between the output and labels is greater than half of the range (i.e. .5),
 							# the network correctly chose the label for THIS option. No inference may be made about the whole contest.
 							if inner_value > .5:
-								marked_ballots_batch[index].marked_contest[contest_idx].computed_vote_index.append(inner_index)
+								# selected_ballots contains a list of all selected ballot indicies.
+								# Must subscript with the "current" ballot.
+								test_loader.dataset.at(selected_ballots[index]).marked_contest[contest_idx].computed_vote_index.append(inner_index)
 				test_images += images
 				test_loss += loss.data.item()
 				test_correct += correct
 
 				# Clean up memory, since CUDA seems to leak memory when running for a long time.
-				del images
-				del labels
+				del tensor_images
+				del tensor_labels
 				del loss
 				del output
 				torch.cuda.empty_cache()
