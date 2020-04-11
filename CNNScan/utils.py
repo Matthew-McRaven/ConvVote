@@ -47,7 +47,7 @@ def show_ballot(marked:MarkedBallots.MarkedBallot):
 		ax = fig.add_subplot( math.ceil(count/5),5, i+1)
 		ax.set_title(f'Contest {contest.contest.index}')
 		ax.set_xlabel(f'Vote for {contest.actual_vote_index}. Recorded as {contest.computed_vote_index}')
-		ax.imshow(contest.image, cmap='gray', interpolation='nearest')
+		ax.imshow(contest.image, interpolation='nearest')
 	plt.show()
 
 def labels_to_vec(labels, length):

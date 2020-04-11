@@ -17,7 +17,7 @@ def create_marked_contest(mark, contest:CNNScan.Ballot.BallotDefinitions.Contest
 	# Contest's image must already be streamed from disk.
 	assert contest.image is not None
 	# Duplicate template image, begin markup.
-	ballot_image = np.copy(contest.image)
+	ballot_image = contest.image.copy()
 	# Determine probability of selecting no, one, or multiple options per contest
 	count = np.random.choice([1], p=[1])
 	# Generate random selections on ballot. Use set to avoid duplicates.

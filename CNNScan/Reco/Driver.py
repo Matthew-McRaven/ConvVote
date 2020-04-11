@@ -1,11 +1,11 @@
+import numpy as np
 import torch
+import torch.utils.data
+import torchvision.transforms
 
 from CNNScan.Reco import ImgRec
 from CNNScan.Reco import Settings
 import CNNScan.Samples
-
-import torch.utils.data
-import torchvision.transforms
 # Load an election definition file from the disk.
 # For now, generates a random election outcome.
 def load_ballot_files(config):
@@ -14,13 +14,14 @@ def load_ballot_files(config):
 # Create training data using fake ballots.
 def get_train(config, ballot, module):
 	# TODO: Make normalization a parameter instead of hardcoded.
-	transforms=torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
+	transforms=torchvision.transforms.Compose([torchvision.transforms.Lambda(lambda x: np.average(x, axis=-1, weights=[1,1,1,0],returned=True)[0]),
+					                           torchvision.transforms.ToTensor(),
 											   torchvision.transforms.Lambda(lambda x: x.float()),
 											   torchvision.transforms.Normalize((1,),(127.5,))
 											   #torchvision.transforms.Lambda(lambda x: (1.0 - (x / 127.5)).float())
 											   ])
-	data = CNNScan.Samples.utils.get_sample_dataset(module, ballot, count=100, transform=transforms)
-	#print(data.at(0).marked_contest[0].tensor)
+	data = CNNScan.Samples.utils.get_sample_dataset(module, ballot, count=50, transform=transforms)
+	#print(data.at(0).marked_contest[0].image)
 	load = torch.utils.data.DataLoader(data, batch_size=config['batch_size'], shuffle=True, )
 	return load
 

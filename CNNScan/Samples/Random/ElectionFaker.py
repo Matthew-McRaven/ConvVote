@@ -1,10 +1,9 @@
-
-import numpy.random
 import random
-from faker import Faker
 
 import numpy as np
 import numpy.random
+from PIL import Image
+from faker import Faker
 
 from CNNScan.Ballot import BallotDefinitions, MarkedBallots, Positions
 import CNNScan.Mark.Marks
@@ -48,34 +47,10 @@ def create_fake_contest_image(contest):
 	# See:
 	# 	https://stackoverflow.com/questions/19016144/conversion-between-pillow-image-object-and-numpy-array-changes-dimension
 	# Additionally, PNG's contain data in [0, 255], so we must create an int ditribution to approximate this.
-	r_data = numpy.random.randint(0,255, (contest.bounding_rect.lower_right.y, contest.bounding_rect.lower_right.x))   # Test data
-	return r_data
-
-# Create a fake ballot image, and select a random candiate to win.
-# Black out all the pixels corresponding to the location on the ballot representing the candidate.
-def create_fake_marked_contest(contest, mark):
-	ballot_image = create_fake_contest_image(contest)
-	# Determine probability of selecting no, one, or multiple options per contest
-	count = np.random.choice([0,1,2,3], p=[.1,.6,.2,.1])
-	# Generate random selections on ballot. Use set to avoid duplicates.
-	selected = set()
-	for i in range(count):
-		selected.add(random.randint(0, len(contest.options) - 1))
-
-	# MarkedContests needs selected indicies to be a list, not a set.
-	marked = MarkedBallots.MarkedContest(contest, ballot_image, list(selected))
-
-	# For all the options that were selected for this contest, mark the contest.
-	
-	return CNNScan.Mark.apply_marks(marked, mark)
-
-# Create a single fake ballot
-def create_fake_marked_ballot(ballot, mark_db):
-	marked = []
-	mark = mark_db.get_random_mark()
-	for index, contest in enumerate(ballot.contests):
-		marked.append(create_fake_marked_contest(contest, mark))
-	return MarkedBallots.MarkedBallot(ballot, marked)
-
-def create_fake_marked_ballots(ballot, mark_db, count):
-	return [create_fake_marked_ballot(ballot, mark_db) for i in range(count)]
+	shape = (contest.bounding_rect.lower_right.y, contest.bounding_rect.lower_right.x)
+	r_data = numpy.random.randint(0,255, shape)   # Test data
+	alpha = numpy.ndarray(shape)
+	alpha.fill(255)
+	r_data = numpy.stack((r_data, r_data, r_data, alpha), axis=2)
+	return Image.fromarray(r_data, mode='RGBA')
+	#return r_data
