@@ -1,7 +1,6 @@
 import typing
-
 import numpy
-
+import CNNScan.Reco.Load
 from CNNScan.Ballot import BallotDefinitions, MarkedBallots
 import CNNScan.Mark
 
@@ -55,3 +54,4 @@ def rasterize_ballot_template(ballot : BallotDefinitions.Ballot, directory : str
 def rasterize_contest(Contest : BallotDefinitions.Contest, ballot_image : numpy.ndarray) -> typing.Tuple[numpy.ndarray, CNNScan.Ballot.Positions.PixelPosition]:
 	return numpy.ndarray((0,0)), CNNScan.Ballot.Positions.PixelPosition()
 	pass
+

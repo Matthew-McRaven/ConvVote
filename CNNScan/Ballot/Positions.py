@@ -44,7 +44,7 @@ def to_pixel_pos(x0, y0, x1, y1):
 	return PixelPosition(PixelPoint(x0, y0), PixelPoint(x1, y1))
 
 def to_percent_pos(x0, y0, x1, y1, page):
-	return RelativePosition(RelativePoint(x0, y0), RelativePoint(x0, y0), page)
+	return RelativePosition(RelativePoint(x0, y0), RelativePoint(x1, y1), page)
 
 # TODO: Given the dimensions of a page, convert from a relative point (% based) to a pixel based point.
 def convert_relative_absolute(size:Tuple[int, int], point:RelativePoint) -> PixelPoint:
