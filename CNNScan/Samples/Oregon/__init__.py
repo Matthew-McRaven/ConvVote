@@ -8,6 +8,7 @@ import CNNScan.Samples.utils
 import CNNScan.Samples.Oregon
 
 import CNNScan.Reco.Load
+from . import percents
 bd = CNNScan.Ballot.BallotDefinitions 
 to_pixel = CNNScan.Ballot.Positions.to_pixel_pos
 contests = []
