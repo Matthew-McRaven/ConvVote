@@ -1,7 +1,7 @@
 import typing
 import os
 import numpy
-import CNNScan.Raster
+from CNNScan.Raster import Raster
 import CNNScan.Samples.utils
 import CNNScan.Samples.Oregon
 import CNNScan.Reco.Load
@@ -21,7 +21,7 @@ if __name__=="__main__":
 
 
 	# create the oregon ballotdefinition object
-
+	rasterize = CNNScan.Raster.Raster.rasterize_ballot_template
 	bd = CNNScan.Ballot.BallotDefinitions 
 	to_pos = CNNScan.Ballot.Positions.to_percent_pos
 	contests = []
@@ -40,7 +40,7 @@ if __name__=="__main__":
 	c01_opt = []
 	c01_opt.append(bd.Option(0, "A", to_pos(.6846, .3681, .7059, .3780,1)))
 	c01_opt.append(bd.Option(1, "B", to_pos(.6846, .3879, .7059, .3978,1)))
-	c01 = bd.Contest(1, "c01", "", c01_opt, to_pos(0.6487, 0, 704, 562,1), "c01.png")
+	c01 = bd.Contest(1, "c01", "", c01_opt, to_pos(0.6487, .25, .967, .562,1), "c01.png")
 	contests.append(c01)
 
 	# Contest 02
@@ -118,15 +118,15 @@ if __name__=="__main__":
 	c12_opt = []
 	c12_opt.append(bd.Option(0, "A", to_pos(.6797, .5129, .7010, .5228,0)))
 	c12_opt.append(bd.Option(1, "B", to_pos(.6797, .5327, .7010, .5427,0)))
-	c12_opt.append(bd.Option(2, "C", to_pos(.6797, .5526, 117, .5625,0)))
+	c12_opt.append(bd.Option(2, "C", to_pos(.6797, .5526, .117, .5625,0)))
 	c12 = bd.Contest(12, "c12", "", c12_opt, to_pos(.6438, .4702, .9657, .5615,0), "c12.png")
 	contests.append(c12)
 
 	# Contest 13
 	c13_opt = []
 	c13_opt.append(bd.Option(0, "A", to_pos(.6797, .4048, .7010, .4147,0)))
-	c13_opt.append(bd.Option(1, "B", to_pos(.6797, 4246, .7010, .3452,0)))
-	c13 = bd.Contest(13, "c13", "", c13_opt, to_pos(.6438, .3552, .9657, .3485,0), "c13.png")
+	c13_opt.append(bd.Option(1, "B", to_pos(.6797, .4246, .7010, .3452,0)))
+	c13 = bd.Contest(13, "c13", "", c13_opt, to_pos(.6438, .3552, .9657, .4485,0), "c13.png")
 	contests.append(c13)
 
 	# Contest 14
@@ -192,7 +192,7 @@ if __name__=="__main__":
 	c22_opt.append(bd.Option(1, "B", to_pos(.0621, .7460, .0833, .7560,0)))
 	c22_opt.append(bd.Option(2, "C", to_pos(.0621, .7659, .0833, .7758,0)))
 	c22_opt.append(bd.Option(3, "D", to_pos(.0621, .7798, .0833, .7897,0)))
-	c22 = bd.Contest(22, "c22", "", c22_opt, to_pos(.0310, .6915, .3185, .4464,0), "c22.png")
+	c22 = bd.Contest(22, "c22", "", c22_opt, to_pos(.0310, .6915, .3185, .7464,0), "c22.png")
 	contests.append(c22)
 
 	# Contest 23
@@ -220,32 +220,37 @@ if __name__=="__main__":
 
 	# Wrap contests in a ballot definition
 	ballot = bd.Ballot(contests=contests, ballot_file="CNNScan/Samples/Oregon/or2018ballot.pdf")
-	print("ballot:",ballot,"@",ballot.ballot_file)
-	print("contests:",len(ballot.contests))
-	# for con in ballot.contests:
-	# 	print("con",con,"@",con.bounding_rect)
+	# print("ballot:",ballot,"@",ballot.ballot_file)
+	# print("contests:",len(ballot.contests))
+	# # for con in ballot.contests:
+	# # 	print("con",con,"@",con.bounding_rect)
 
-	print("contest 24 ",ballot.contests[24].bounding_rect)
+	# print("contest 24 ",ballot.contests[24].bounding_rect)
 
-	bf = convert_from_path(ballot.ballot_file, output_folder="../test",output_file="oregon")
+	# bf = convert_from_path(ballot.ballot_file, output_folder="../test",output_file="oregon")
 
-	# print("ballot size",bf.size())
-	temp = os.listdir("../test")
-	imgs = []
-	for img in temp:
-		if "oregon" in img:
-			imgs.append(img)
-	imgs.sort()
-	page1 = Image.open(f"../test/{imgs[0]}")
-	print(page1.size)
+	# # print("ballot size",bf.size())
+	# temp = os.listdir("../test")
+	# imgs = []
+	# for img in temp:
+	# 	if "oregon" in img:
+	# 		imgs.append(img)
+	# imgs.sort()
+	# page1 = Image.open(f"../test/{imgs[0]}")
+	# print(page1.size)
 
-	br = ballot.contests[24].bounding_rect
-	print("ballot dimensions",br)
-	w,h=page1.size
-	qaud = (w*br.upper_left.x,h*br.upper_left.y,w*br.lower_right.x,h*.49)
-	c24test=page1.crop(qaud)
-	print(c24test.size)
-	c24test.show()
+	# br = ballot.contests[24].bounding_rect
+	# print("contest dimensions",br)
+	# print("contest page",ballot.contests[24].bounding_rect.page)
+	# w,h=page1.size
+	# qaud = (w*br.upper_left.x,h*br.upper_left.y,w*br.lower_right.x,h*.49)
+	# c24test=page1.crop(qaud)
+	# print(c24test.size)
+	# c24test.show()
+
+	direct="../test"
+	value = rasterize(ballot, direct , 400)
+	print(value)
 
 	# pass BallotDefinition and directory of contest .png's into rasterize_ballot_template()
 	# rasterize ballot, pick out each contest and save to directory
