@@ -21,15 +21,15 @@ def create_marked_contest(mark, contest:CNNScan.Ballot.BallotDefinitions.Contest
 	# Determine probability of selecting no, one, or multiple options per contest
 	count = np.random.choice([1], p=[1])
 	# Generate random selections on ballot. Use set to avoid duplicates.
-	selected = set()
+	selected = set(range(0,len(contest.options)))
 	for i in range(count):
 		selected.add(random.randint(0, len(contest.options) - 1))
 
 	# MarkedContests needs selected indicies to be a list, not a set.
-	marked = CNNScan.Ballot.MarkedBallots.MarkedContest(contest, ballot_image, list(selected))
+	marked = CNNScan.Ballot.MarkedBallots.MarkedContest(contest.index, ballot_image, list(selected))
 
 	# For all the options that were selected for this contest, mark the contest.
-	CNNScan.Mark.apply_marks(marked, mark)
+	CNNScan.Mark.apply_marks(contest, marked, mark)
 	return marked
 
 def create_marked_ballot(ballot, mark_database):
@@ -66,8 +66,8 @@ class ImageDataSet(Dataset):
 	def __getitem__(self, index):
 		val = self.at(index)
 		labels, images =[],[]
-		for contest in val.marked_contest:
-			num_candidates = len(contest.contest.options)
+		for i, contest in enumerate(val.marked_contest):
+			num_candidates = len(self.ballot.contests[i].options)
 			# TODO: Create additional encodings (such a multi-class classification or ranked-choice) that may be choosen from here.
 			labels.append(torch.tensor(CNNScan.utils.labels_to_vec(contest.actual_vote_index, num_candidates), dtype=torch.float32))
 			images.append(contest.tensor)

@@ -206,7 +206,7 @@ c24 = bd.Contest(24, "c24", "", c24_opt, to_pixel(0, 0, 638, 544), "c24.png")
 contests.append(c24)
 
 # Wrap contests in a ballot definition
-ballot = bd.Ballot(contests=contests, ballot_file="")
+ballot = bd.Ballot(contests=contests, ballot_file="CNNScan/Samples/Oregon/or2018ballot.pdf")
 # Provide interface to access ballot.
 def get_sample_ballot():
 	global ballot

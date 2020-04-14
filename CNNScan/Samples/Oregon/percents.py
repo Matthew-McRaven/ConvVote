@@ -26,7 +26,7 @@ contests.append(c00)
 c01_opt = []
 c01_opt.append(bd.Option(0, "A", to_pos(.6846, .3681, .7059, .3780,1)))
 c01_opt.append(bd.Option(1, "B", to_pos(.6846, .3879, .7059, .3978,1)))
-c01 = bd.Contest(1, "c01", "", c01_opt, to_pos(0.6487, 0, 704, 562,1), "c01.png")
+c01 = bd.Contest(1, "c01", "", c01_opt, to_pos(0.6487, .25, .967, .562,1), "c01.png")
 contests.append(c01)
 
 # Contest 02
@@ -87,7 +87,7 @@ contests.append(c09)
 
 # Contest 10
 c10_opt = []
-c10_opt.append(bd.Option(0, "A", to_pos(.6797, .07798, .7010, .7897,0)))
+c10_opt.append(bd.Option(0, "A", to_pos(.6797, .7798, .7010, .7897,0)))
 c10_opt.append(bd.Option(1, "B", to_pos(.6797, .7996, .7010, .8095,0)))
 c10 = bd.Contest(10, "c10", "", c10_opt, to_pos(.6438, .7312, .9657, .8125,0), "c10.png")
 contests.append(c10)
@@ -104,21 +104,21 @@ contests.append(c11)
 c12_opt = []
 c12_opt.append(bd.Option(0, "A", to_pos(.6797, .5129, .7010, .5228,0)))
 c12_opt.append(bd.Option(1, "B", to_pos(.6797, .5327, .7010, .5427,0)))
-c12_opt.append(bd.Option(2, "C", to_pos(.6797, .5526, 117, .5625,0)))
+c12_opt.append(bd.Option(2, "C", to_pos(.6797, .5526, .7117, .5625,0)))
 c12 = bd.Contest(12, "c12", "", c12_opt, to_pos(.6438, .4702, .9657, .5615,0), "c12.png")
 contests.append(c12)
 
 # Contest 13
 c13_opt = []
 c13_opt.append(bd.Option(0, "A", to_pos(.6797, .4048, .7010, .4147,0)))
-c13_opt.append(bd.Option(1, "B", to_pos(.6797, 4246, .7010, .3452,0)))
-c13 = bd.Contest(13, "c13", "", c13_opt, to_pos(.6438, .3552, .9657, .3485,0), "c13.png")
+c13_opt.append(bd.Option(1, "B", to_pos(.6797, .4246, .7010, .4452,0)))
+c13 = bd.Contest(13, "c13", "", c13_opt, to_pos(.6438, .3552, .9657, .4485,0), "c13.png")
 contests.append(c13)
 
 # Contest 14
 c14_opt = []
 c14_opt.append(bd.Option(0, "A", to_pos(.6797, .3155, .7010, .3254,0)))
-c14_opt.append(bd.Option(1, "B", to_pos(.6797, .3353, .6797, .3452,0)))
+c14_opt.append(bd.Option(1, "B", to_pos(.6797, .3353, .7010, .3452,0)))
 c14 = bd.Contest(14, "c14", "", c14_opt, to_pos(.6438, .2629, .9657, .3462,0), "c14.png")
 contests.append(c14)
 
@@ -178,7 +178,7 @@ c22_opt.append(bd.Option(0, "A", to_pos(.0621, .7262, .0833, .7361,0)))
 c22_opt.append(bd.Option(1, "B", to_pos(.0621, .7460, .0833, .7560,0)))
 c22_opt.append(bd.Option(2, "C", to_pos(.0621, .7659, .0833, .7758,0)))
 c22_opt.append(bd.Option(3, "D", to_pos(.0621, .7798, .0833, .7897,0)))
-c22 = bd.Contest(22, "c22", "", c22_opt, to_pos(.0310, .6915, .3185, .4464,0), "c22.png")
+c22 = bd.Contest(22, "c22", "", c22_opt, to_pos(.0310, .6915, .3185, .7464,0), "c22.png")
 contests.append(c22)
 
 # Contest 23
@@ -196,7 +196,7 @@ contests.append(c23)
 # Contest 24
 c24_opt = []
 c24_opt.append(bd.Option(0, "A", to_pos(.0621, .3879, .0833, .3978,0)))
-c24_opt.append(bd.Option(1, "B", to_pos(.0621, .5048, .0833, .4147,0)))
+c24_opt.append(bd.Option(1, "B", to_pos(.0621, .4147, .0833, .4215,0)))
 c24_opt.append(bd.Option(2, "C", to_pos(.0621, .4236, .0833, .4335,0)))
 c24_opt.append(bd.Option(3, "D", to_pos(.0621, .4415, .0833, .4514,0)))
 c24_opt.append(bd.Option(4, "E", to_pos(.0621, .4593, .0833, .4692,0)))
@@ -205,7 +205,7 @@ c24 = bd.Contest(24, "c24", "", c24_opt, to_pos(.0310, .3423, .3185, .8393,0), "
 contests.append(c24)
 
 # Wrap contests in a ballot definition
-ballot = bd.Ballot(contests=contests, ballot_file="")
+ballot = bd.Ballot(contests=contests, ballot_file="CNNScan/Samples/Oregon/or2018ballot.pdf")
 # Provide interface to access ballot.
 def get_sample_ballot():
 	global ballot

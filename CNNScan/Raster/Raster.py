@@ -1,9 +1,8 @@
 import typing
 import os
+import math
+
 import numpy
-import CNNScan.Reco.Load
-from CNNScan.Ballot import BallotDefinitions, MarkedBallots
-import CNNScan.Mark
 from pdf2image import convert_from_path, convert_from_bytes
 from pdf2image.exceptions import (
     PDFInfoNotInstalledError,
@@ -11,6 +10,11 @@ from pdf2image.exceptions import (
     PDFSyntaxError
 )
 from PIL import Image
+
+import CNNScan.Reco.Load
+from CNNScan.Ballot import BallotDefinitions, MarkedBallots
+import CNNScan.Mark
+
 to_pos = CNNScan.Ballot.Positions.to_pixel_pos
 """
 (Unimplemented) helper class to apply "marks" to regions on a contest.
@@ -54,7 +58,8 @@ def rasterize_ballot_template(ballot : BallotDefinitions.Ballot, directory : str
 		bounding = contest.bounding_rect
 		ballot_png=Image.open(f"{directory}/{ballot_pages[bounding.page]}")
 		width,height = ballot_png.size
-		contest_pos=to_pos(width*bounding.upper_left.x,height*bounding.upper_left.y,width*bounding.lower_right.x,height*bounding.lower_right.y)
+		# We will be cropping the image to only contain the contest and nothing else, so we must "fix" the bounding rectanble
+		contest_pos=to_pos(0, 0, round(width*(bounding.lower_right.x-bounding.upper_left.x)), round(width*(bounding.lower_right.y-bounding.upper_left.y)))
 		contest_img=ballot_png.crop((width*bounding.upper_left.x,height*bounding.upper_left.y,width*bounding.lower_right.x,height*bounding.lower_right.y))
 		# (subimage, contest_pos) = rasterize_contest(contest, numpy.ndarray((0,0)))
 		# TODO: Convert options from relative to absolute coordinates.
@@ -64,10 +69,11 @@ def rasterize_ballot_template(ballot : BallotDefinitions.Ballot, directory : str
 			# make relative positions precise pixel locations
 			# multiply relative values by height and width of this contest
 			option_bounding=option.bounding_rect
-			new_x1=cw*option_bounding.upper_left.x
-			new_y1=ch*option_bounding.upper_left.y
-			new_x2=cw*option_bounding.lower_right.x
-			new_y2=ch*option_bounding.lower_right.y
+			# Subtract the number of pixels "cropped off" above.
+			new_x1=round(width*option_bounding.upper_left.x) - round(width*bounding.upper_left.x)
+			new_y1=round(height*option_bounding.upper_left.y) - round(height*bounding.upper_left.y)
+			new_x2=round(width*option_bounding.lower_right.x) - round(width*bounding.upper_left.x)
+			new_y2=round(height*option_bounding.lower_right.y) - round(height*bounding.upper_left.y)
 			new_opt = BallotDefinitions.Option(option.index, option.description, to_pos(new_x1,new_y1,new_x2,new_y2))
 			# print("new option position",to_pos(new_x1,new_y1,new_x2,new_y2))
 			converted_options.append(new_opt)
@@ -76,7 +82,24 @@ def rasterize_ballot_template(ballot : BallotDefinitions.Ballot, directory : str
 		converted_contests.append(new_contest)
 		# TODO: Determine where contest image is saved.
 		new_contest.file = directory+"/cont"+str(cc)+".png"
-		new_contest.image = contest_img
+		new_contest.image = contest_img.convert("RGBA")
+		print(f"{new_contest.index}:  {new_contest.bounding_rect}")
+		print(new_contest.image)
+		for option in new_contest.options:
+			print(f"{option.index}:  {option.bounding_rect}")
+			# Future code expects that pixel positions  be integers, or image manipulations will fail.
+			assert isinstance(option.bounding_rect.lower_right.y, int) and isinstance(option.bounding_rect.upper_left.y, int)
+			assert isinstance(option.bounding_rect.lower_right.x, int) and isinstance(option.bounding_rect.upper_left.x, int)
+			# Require that bounding rectangle be un-inverted. The upper left corner
+			# must be strictly less than the bottom right corner.
+			assert option.bounding_rect.lower_right.y > option.bounding_rect.upper_left.y
+			assert option.bounding_rect.lower_right.x > option.bounding_rect.upper_left.x
+			# Assert that option is contained entirely within a contest.
+			assert new_contest.bounding_rect.upper_left.x < option.bounding_rect.upper_left.x
+			assert new_contest.bounding_rect.upper_left.y < option.bounding_rect.upper_left.y
+			assert new_contest.bounding_rect.lower_right.x > option.bounding_rect.lower_right.x
+			assert new_contest.bounding_rect.lower_right.x > option.bounding_rect.lower_right.x
+		print("\n")
 		cc+=1
 		# words = input("contest successfully created,\npress enter")
 	ret_val = BallotDefinitions.Ballot(converted_contests, ballot.ballot_file)
@@ -92,5 +115,4 @@ def rasterize_ballot_template(ballot : BallotDefinitions.Ballot, directory : str
 # TODO: Convert a relative-positioned contest to an 
 def rasterize_contest(Contest : BallotDefinitions.Contest, ballot_image : numpy.ndarray) -> typing.Tuple[numpy.ndarray, CNNScan.Ballot.Positions.PixelPosition]:
 	return numpy.ndarray((0,0)), CNNScan.Ballot.Positions.PixelPosition()
-	pass
 
