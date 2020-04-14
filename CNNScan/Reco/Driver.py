@@ -20,7 +20,7 @@ def get_train(config, ballot, module):
 											   torchvision.transforms.Normalize((1,),(127.5,))
 											   #torchvision.transforms.Lambda(lambda x: (1.0 - (x / 127.5)).float())
 											   ])
-	data = CNNScan.Samples.utils.get_sample_dataset(module, ballot, count=50, transform=transforms)
+	data = CNNScan.Mark.mark_dataset(ballot, count=50, transform=transforms)
 	#print(data.at(0).marked_contest[0].image)
 	load = torch.utils.data.DataLoader(data, batch_size=config['batch_size'], shuffle=True, )
 	return load
@@ -45,7 +45,7 @@ def contest_entry_point(config, module=CNNScan.Samples.Oregon):
 	#print(render_data)
 	CNNScan.Reco.ImgRec.evaluate_ballots(model, ballot, render_data, config, add_to_ballots=True)
 
-	CNNScan.utils.show_ballot(render_data.dataset.at(0))
+	CNNScan.utils.show_ballot(ballot, render_data.dataset.at(0))
 	
 	# TODO: write model to file
 

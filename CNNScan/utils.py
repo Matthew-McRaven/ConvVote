@@ -40,12 +40,12 @@ def image_to_tensor(image):
 	return torch.from_numpy(image)
 
 # Visualize marked ballots.
-def show_ballot(marked:MarkedBallots.MarkedBallot):
+def show_ballot(ballot:BallotDefinitions.Ballot, marked:MarkedBallots.MarkedBallot):
 	count = len(marked.marked_contest)
 	fig = plt.figure()
 	for i, contest in enumerate(marked.marked_contest):
 		ax = fig.add_subplot( math.ceil(count/5),5, i+1)
-		ax.set_title(f'Contest {contest.contest.index}')
+		ax.set_title(f'Contest {contest.index}')
 		ax.set_xlabel(f'Vote for {contest.actual_vote_index}. Recorded as {contest.computed_vote_index}')
 		ax.imshow(contest.image, interpolation='nearest')
 	plt.show()
