@@ -25,10 +25,10 @@ class Contest:
 		
 		# Assert that option is contained entirely within a contest.
 		for option in self.options:
-			assert self.bounding_rect.upper_left.x < option.bounding_rect.upper_left.x
-			assert self.bounding_rect.upper_left.y < option.bounding_rect.upper_left.y
-			assert self.bounding_rect.lower_right.x > option.bounding_rect.lower_right.x
-			assert self.bounding_rect.lower_right.x > option.bounding_rect.lower_right.x
+			assert self.bounding_rect.upper_left.x <= option.bounding_rect.upper_left.x
+			assert self.bounding_rect.upper_left.y <= option.bounding_rect.upper_left.y
+			assert self.bounding_rect.lower_right.x >= option.bounding_rect.lower_right.x
+			assert self.bounding_rect.lower_right.x >= option.bounding_rect.lower_right.x
 
 		self.contest_file = contest_file
 		# This image represents the unmarked contest which this class describes.
