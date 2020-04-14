@@ -42,7 +42,7 @@ def rasterize_ballot_template(ballot : BallotDefinitions.Ballot, directory : str
 			assert isinstance(option.bounding_rect, CNNScan.Ballot.Positions.RelativePosition)
 
 	# converty pdf of ballot and save the ballot png
-	bf = convert_from_path(ballot.ballot_file, output_folder=directory,output_file="tmp")
+	bf = convert_from_path(ballot.ballot_file, output_folder=directory,output_file="tmp",dpi=dpi)
 	temp = os.listdir(directory)
 	ballot_pages = []
 	for img in temp:
