@@ -2,6 +2,11 @@
 This module returns a ballot based on Mulnomah County's (Oregon) 2018 election.
 The ballot is available from:
 	https://multco.us/elections/sample-ballots-november-2018-general-election
+
+This ballot took 3 hours to markup from start to finish.
+This included creating the numbers file & measuring the 33 contests,
+creating this file from numbers spreadsheet, and debugging the sizes
+of contests and options.
 """
 
 import os
