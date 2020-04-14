@@ -16,7 +16,7 @@ def main(parser):
 	output_base_path = os.path.abspath(options.outdir[0])
 	# Determine number of images / marking conditions
 
-	ballot = CNNScan.Samples.Oregon.percents.ballot
+	ballot = CNNScan.Samples.Oregon.ballot
 	output_directory = output_base_path
 	if not os.path.exists(output_directory):
 		os.mkdir(output_directory)

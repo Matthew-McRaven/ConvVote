@@ -47,6 +47,14 @@ class RelativePosition:
 	upper_left:RelativePoint = RelativePoint()
 	lower_right:RelativePoint = RelativePoint()
 	page:int = 1
+	def __init__(self, ul:RelativePoint = RelativePoint(), lr:RelativePoint = RelativePoint(), page:int=1):
+		self.page=page
+		self.upper_left = ul
+		self.lower_right = lr
+		# Require that bounding rectangle be un-inverted. The upper left corner
+		# must be strictly less than the bottom right corner.
+		assert self.lower_right.y > self.upper_left.y
+		assert self.lower_right.x > self.upper_left.x
 	
 	def size(self) -> (int, int):
 		return (self.lower_right.x - self.upper_left.x, self.lower_right.y - self.upper_left.y)
