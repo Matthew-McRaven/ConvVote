@@ -7,5 +7,5 @@ if __name__ == "__main__":
 	# Or choose randomly generate data, on which the network performs decently.
 	module = CNNScan.Samples.Oregon
 	#module = CNNScan.Samples.Random
-	
+
 	Driver.contest_entry_point(settings, module)

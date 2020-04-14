@@ -59,8 +59,11 @@ def rasterize_ballot_template(ballot : BallotDefinitions.Ballot, directory : str
 		ballot_png=Image.open(f"{directory}/{ballot_pages[bounding.page]}")
 		width,height = ballot_png.size
 		# We will be cropping the image to only contain the contest and nothing else, so we must "fix" the bounding rectanble
-		contest_pos=to_pos(0, 0, round(width*(bounding.lower_right.x-bounding.upper_left.x)), round(width*(bounding.lower_right.y-bounding.upper_left.y)))
+		
 		contest_img=ballot_png.crop((width*bounding.upper_left.x,height*bounding.upper_left.y,width*bounding.lower_right.x,height*bounding.lower_right.y))
+		# Base contest coordinates on the dimension of the image, to avoid roundoff errors.
+		contest_pos=to_pos(0, 0, contest_img.width, contest_img.height)
+		print(contest_pos)
 		# (subimage, contest_pos) = rasterize_contest(contest, numpy.ndarray((0,0)))
 		# TODO: Convert options from relative to absolute coordinates.
 		converted_options = []

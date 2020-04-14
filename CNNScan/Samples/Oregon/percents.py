@@ -3,6 +3,10 @@ This module returns a ballot based on Mulnomah County's (Oregon) 2018 election.
 The ballot is available from:
 	https://multco.us/elections/sample-ballots-november-2018-general-election
 """
+import os
+
+import torchvision
+
 import CNNScan.Ballot.BallotDefinitions  
 import CNNScan.Samples.utils
 import CNNScan.Samples.Oregon
@@ -209,9 +213,19 @@ ballot = bd.Ballot(contests=contests, ballot_file="CNNScan/Samples/Oregon/or2018
 # Provide interface to access ballot.
 def get_sample_ballot():
 	global ballot
-	for contest in ballot.contests:
-		if contest.image is None:
-			contest.image = CNNScan.Samples.utils.load_template_image(CNNScan.Samples.Oregon, contest)
+	output_directory = "temp"
+	if not os.path.exists(output_directory):
+		os.mkdir(output_directory)
+	if not os.path.exists(output_directory+ "/ballot_template"):
+		os.mkdir(output_directory+ "/ballot_template")
+	transforms=torchvision.transforms.Compose([torchvision.transforms.Lambda(lambda x: np.average(x, axis=-1, weights=[1,1,1,0],returned=True)[0]),
+					                           torchvision.transforms.ToTensor(),
+											   torchvision.transforms.Lambda(lambda x: x.float()),
+											   torchvision.transforms.Normalize((1,),(127.5,))
+											   #torchvision.transforms.Lambda(lambda x: (1.0 - (x / 127.5)).float())
+											   ])
+	print(os.path.abspath(ballot.ballot_file))
+	ballot = CNNScan.Raster.Raster.rasterize_ballot_template(ballot, output_directory+"/ballot_template", 400)
 	return ballot
 	
 del bd
