@@ -14,8 +14,13 @@ from typing import Dict, Tuple, Sequence
 
 @dataclass
 class PixelPoint:
-	x:int = 0
-	y:int = 0
+	x:int=0
+	y:int=0
+	def __init__(self, x:int=0, y:int=0):
+		self.x = x 
+		self.y = y
+		# Future code expects that pixel positions  be integers, or image manipulations will fail.
+		assert isinstance(x, int) and isinstance(y, int)
 
 @dataclass
 class RelativePoint:
@@ -26,6 +31,13 @@ class RelativePoint:
 class PixelPosition:
 	upper_left:PixelPoint = PixelPoint()
 	lower_right:PixelPoint = PixelPoint()
+	def __init__(self, ul:PixelPoint = PixelPoint(), lr:PixelPoint = PixelPoint()):
+		self.upper_left = ul
+		self.lower_right = lr
+		# Require that bounding rectangle be un-inverted. The upper left corner
+		# must be strictly less than the bottom right corner.
+		assert self.lower_right.y > self.upper_left.y
+		assert self.lower_right.x > self.upper_left.x
 
 	def size(self) -> (int, int):
 		return (self.lower_right.x - self.upper_left.x, self.lower_right.y - self.upper_left.y)

@@ -33,7 +33,7 @@ contests.append(c01)
 c02_opt = []
 c02_opt.append(bd.Option(0, "A", to_pos(.6846, .2083, .7059, .2183,1)))
 c02_opt.append(bd.Option(1, "B", to_pos(.6846, .2282, .7059, .2381,1)))
-c02 = bd.Contest(2, "c02", "", c02_opt, to_pos(0.6487, .2450, .9706, .4038,1), "c02.png")
+c02 = bd.Contest(2, "c02", "", c02_opt, to_pos(0.6485, .2050, .9706, .4038,1), "c02.png")
 contests.append(c01)
 
 # Contest 03

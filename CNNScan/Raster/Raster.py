@@ -87,18 +87,6 @@ def rasterize_ballot_template(ballot : BallotDefinitions.Ballot, directory : str
 		print(new_contest.image)
 		for option in new_contest.options:
 			print(f"{option.index}:  {option.bounding_rect}")
-			# Future code expects that pixel positions  be integers, or image manipulations will fail.
-			assert isinstance(option.bounding_rect.lower_right.y, int) and isinstance(option.bounding_rect.upper_left.y, int)
-			assert isinstance(option.bounding_rect.lower_right.x, int) and isinstance(option.bounding_rect.upper_left.x, int)
-			# Require that bounding rectangle be un-inverted. The upper left corner
-			# must be strictly less than the bottom right corner.
-			assert option.bounding_rect.lower_right.y > option.bounding_rect.upper_left.y
-			assert option.bounding_rect.lower_right.x > option.bounding_rect.upper_left.x
-			# Assert that option is contained entirely within a contest.
-			assert new_contest.bounding_rect.upper_left.x < option.bounding_rect.upper_left.x
-			assert new_contest.bounding_rect.upper_left.y < option.bounding_rect.upper_left.y
-			assert new_contest.bounding_rect.lower_right.x > option.bounding_rect.lower_right.x
-			assert new_contest.bounding_rect.lower_right.x > option.bounding_rect.lower_right.x
 		print("\n")
 		cc+=1
 		# words = input("contest successfully created,\npress enter")
