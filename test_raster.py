@@ -1,12 +1,7 @@
 import typing
 import os
+
 import numpy
-from CNNScan.Raster import Raster
-import CNNScan.Samples.utils
-import CNNScan.Samples.Oregon
-import CNNScan.Reco.Load
-from CNNScan.Ballot import BallotDefinitions, MarkedBallots
-import CNNScan.Mark
 from pdf2image import convert_from_path, convert_from_bytes
 from pdf2image.exceptions import (
     PDFInfoNotInstalledError,
@@ -14,6 +9,14 @@ from pdf2image.exceptions import (
     PDFSyntaxError
 )
 from PIL import Image
+import matplotlib.pyplot as plt
+
+from CNNScan.Raster import Raster
+import CNNScan.Samples.utils
+import CNNScan.Samples.Oregon
+import CNNScan.Reco.Load
+from CNNScan.Ballot import BallotDefinitions, MarkedBallots
+import CNNScan.Mark
 import CNNScan.Reco
 
 if __name__=="__main__":
@@ -69,6 +72,18 @@ if __name__=="__main__":
 	render_data = CNNScan.Reco.Driver.get_test(config, ballot, CNNScan.Samples.Oregon)
 
 	CNNScan.utils.show_ballot(render_data.dataset.ballot, render_data.dataset.at(0))
+	"""for i, contest in enumerate(render_data.dataset.at(0).marked_contest):
+		print(contest.index)
+		if contest.index in [24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3]:
+			continue
+		fig = plt.figure()
+		ax = fig.add_subplot( 1, 1, 1)
+		ax.set_title(f'Contest {contest.index}')
+		ax.set_xlabel(f'Vote for {contest.actual_vote_index}. Recorded as {contest.computed_vote_index}')
+		ax.imshow(contest.image, interpolation='nearest')
+	plt.show()"""
+	
+	
 
 	# pass BallotDefinition and directory of contest .png's into rasterize_ballot_template()
 	# rasterize ballot, pick out each contest and save to directory
