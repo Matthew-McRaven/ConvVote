@@ -21,7 +21,7 @@ def create_marked_contest(mark, contest:CNNScan.Ballot.BallotDefinitions.Contest
 	# Determine probability of selecting no, one, or multiple options per contest
 	count = np.random.choice([1], p=[1])
 	# Generate random selections on ballot. Use set to avoid duplicates.
-	selected = set(range(0,len(contest.options)))
+	selected = set()
 	for i in range(count):
 		selected.add(random.randint(0, len(contest.options) - 1))
 

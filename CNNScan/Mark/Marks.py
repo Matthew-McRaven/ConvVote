@@ -83,7 +83,7 @@ class AssignApply:
 		return self.apply_mark(*args, **kwargs)
 
 
-def apply_marks(contest, marked: CNNScan.Ballot.MarkedBallots.MarkedContest, mark, apply=NoisyApply(.3)):
+def apply_marks(contest, marked: CNNScan.Ballot.MarkedBallots.MarkedContest, mark, apply=AssignApply()):
 	for which in marked.actual_vote_index:
 		apply(marked.image, contest.options[which].bounding_rect, mark)
 	return marked
