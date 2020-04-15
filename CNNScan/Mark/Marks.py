@@ -88,7 +88,7 @@ def apply_marks(contest, marked: CNNScan.Ballot.MarkedBallots.MarkedContest, mar
 		apply(marked.image, contest.options[which].bounding_rect, mark)
 	return marked
 
-def mark_dataset(ballot:CNNScan.Ballot.BallotDefinitions.Ballot, count=100, transform=None):
+def mark_dataset(ballot:CNNScan.Ballot.BallotDefinitions.Ballot, transforms, count=100):
 	mark_db = CNNScan.Mark.MarkDatabase()
 	mark_db.insert_mark(CNNScan.Mark.BoxMark())
-	return CNNScan.Reco.Load.ImageDataSet(ballot, mark_db, count, transform=transform)
+	return CNNScan.Reco.Load.GeneratingDataSet(ballot, mark_db, count, transforms)

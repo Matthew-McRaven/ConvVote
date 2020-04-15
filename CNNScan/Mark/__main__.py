@@ -32,7 +32,7 @@ def main(parser):
 	ballot = CNNScan.Raster.Raster.rasterize_ballot_template(ballot, output_directory+"/ballot_template", 400)
 
 	# Create marked ballots
-	marked_ballots = CNNScan.Mark.mark_dataset(ballot, count=1000, transform=transforms)
+	marked_ballots = CNNScan.Mark.mark_dataset(ballot,transforms, count=1000)
 	# TODO: use generator expression to create ballots in batches, to reduce memory pressure on host machine
 	with open(output_directory+"/ballot-template.p", "wb") as file:
 		pickle.dump(ballot, file)

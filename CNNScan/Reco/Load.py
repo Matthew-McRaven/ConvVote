@@ -1,6 +1,7 @@
 from typing import List
 import importlib.resources
 import random
+import pickle
 
 import torch
 import numpy as np
@@ -40,26 +41,27 @@ def create_marked_ballot(ballot, mark_database):
 		contests.append(latest)
 	return CNNScan.Ballot.MarkedBallots.MarkedBallot(ballot, contests)
 
-
-
-class ImageDataSet(Dataset):
-	def __init__(self, ballot_def, markdb, ballot_count, transform):
-		# TODO: Add configuration parameters to control markings.
-		self.ballot = ballot_def
-		self.markdb = markdb
+class BallotDataSet(Dataset):
+	def __init__(self, ballot_definition, ballot_count,  transforms, lazy_nondeterminism=True):
+		self.ballot_definition = ballot_definition
 		self.ballot_count = ballot_count
-		# Initialize list of ballot objects to nothing.
-		# Lazily load/generate referenced ballot on first use
-		self.marked_ballots = ballot_count * [None]
-		# torchvision.transfom to convernt 4 channel RGBA image to a tensor.
-		self.transform = transform
-		
-	# Needed to refrence ballot object rather than getting tensor-like data used by DataLoader
+		self.marked_ballots = [None] * ballot_count
+		self.transforms = transforms
+		self.lazy = lazy_nondeterminism
+
+		# Force all ballots to be loaded immediately.
+		if not lazy_nondeterminism:
+			for i in range(self.ballot_count):
+				self.at(i)
+
+	def load_ballot(self, index):
+		raise NotImplementedError
+
 	def at(self, index):
 		if self.marked_ballots[index] is None:
-			self.marked_ballots[index] = create_marked_ballot(self.ballot, self.markdb)
+			self.marked_ballots[index] = self.load_ballot(index)
 			for contest in self.marked_ballots[index].marked_contest:
-				contest.tensor = self.transform(contest.image)
+				contest.tensor = self.transforms(contest.image)
 		return self.marked_ballots[index]
 
 	# Return tensors usable by DataLoader interface.
@@ -67,7 +69,7 @@ class ImageDataSet(Dataset):
 		val = self.at(index)
 		labels, images =[],[]
 		for i, contest in enumerate(val.marked_contest):
-			num_candidates = len(self.ballot.contests[i].options)
+			num_candidates = len(self.ballot_definition.contests[i].options)
 			# TODO: Create additional encodings (such a multi-class classification or ranked-choice) that may be choosen from here.
 			labels.append(torch.tensor(CNNScan.utils.labels_to_vec(contest.actual_vote_index, num_candidates), dtype=torch.float32))
 			images.append(contest.tensor)
@@ -75,3 +77,30 @@ class ImageDataSet(Dataset):
 
 	def __len__(self):
 		return self.ballot_count
+
+class DirectoryDataSet(BallotDataSet):
+	def __init__(self, directory, transforms, lazy_nondeterminism=True):
+		self.directory = directory
+		super(DirectoryDataSet, self).__init__(self.load_ballot_def(), self.count_ballots(), transforms, lazy_nondeterminism=lazy_nondeterminism)
+
+	def load_ballot(self, index):
+		# We shouldn't be asked to create a new ballot when one already exists
+		assert self.marked_ballots[index] is None
+		raise NotImplementedError("Can't yet read from directories")
+
+	def load_ballot_definition(self):
+		raise NotImplementedError("Can't yet read from directories")
+
+	def count_ballots(self):
+		raise NotImplementedError("Can't yet read from directories")
+
+
+class GeneratingDataSet(BallotDataSet):
+	def __init__(self, ballot_def, markdb, ballot_count, transforms, lazy_nondeterminism=True):
+		self.markdb = markdb
+		super(GeneratingDataSet, self).__init__(ballot_def, ballot_count, transforms, lazy_nondeterminism=lazy_nondeterminism)
+
+	def load_ballot(self, index):
+		# We shouldn't be asked to create a new ballot when one already exists.
+		assert self.marked_ballots[index] is None
+		return create_marked_ballot(self.ballot_definition, self.markdb)
