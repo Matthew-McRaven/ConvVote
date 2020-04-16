@@ -31,9 +31,11 @@ class RelativePoint:
 class PixelPosition:
 	upper_left:PixelPoint = PixelPoint()
 	lower_right:PixelPoint = PixelPoint()
-	def __init__(self, ul:PixelPoint = PixelPoint(), lr:PixelPoint = PixelPoint()):
+	page:int = 1
+	def __init__(self, ul:PixelPoint = PixelPoint(), lr:PixelPoint = PixelPoint(), page:int=1):
 		self.upper_left = ul
 		self.lower_right = lr
+		self.page = page
 		# Require that bounding rectangle be un-inverted. The upper left corner
 		# must be strictly less than the bottom right corner.
 		assert self.lower_right.y > self.upper_left.y
@@ -60,8 +62,8 @@ class RelativePosition:
 		return (self.lower_right.x - self.upper_left.x, self.lower_right.y - self.upper_left.y)
 	
 # Construct a Pixel-based bounding rectangle from four points.
-def to_pixel_pos(x0, y0, x1, y1):
-	return PixelPosition(PixelPoint(x0, y0), PixelPoint(x1, y1))
+def to_pixel_pos(x0, y0, x1, y1, page):
+	return PixelPosition(PixelPoint(x0, y0), PixelPoint(x1, y1), page)
 
 def to_percent_pos(x0, y0, x1, y1, page):
 	return RelativePosition(RelativePoint(x0, y0), RelativePoint(x1, y1), page)

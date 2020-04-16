@@ -17,31 +17,34 @@ import CNNScan.Ballot.MarkedBallots
 # Create a fake ballot image, and select a random candiate to win.
 # Black out all the pixels corresponding to the location on the ballot representing the candidate.
 def create_marked_contest(mark, contest:CNNScan.Ballot.BallotDefinitions.Contest):
+	raise NotImplementedError("This no longer does what you think it does")
 	# Contest's image must already be streamed from disk.
 	assert contest.image is not None
 	# Duplicate template image, begin markup.
 	ballot_image = contest.image.copy()
 	# Determine probability of selecting no, one, or multiple options per contest
-	count = np.random.choice([1], p=[1])
-	# Generate random selections on ballot. Use set to avoid duplicates.
-	selected = set()
-	for i in range(count):
-		selected.add(random.randint(0, len(contest.options) - 1))
-
-	# MarkedContests needs selected indicies to be a list, not a set.
-	marked = CNNScan.Ballot.MarkedBallots.MarkedContest(contest.index, ballot_image, list(selected))
-
-	# For all the options that were selected for this contest, mark the contest.
-	CNNScan.Mark.apply_marks(contest, marked, mark)
 	return marked
 
 def create_marked_ballot(ballot, mark_database):
+	assert ballot.pages is not None
 	contests = []
+	marked_pages = [page.copy() for page in ballot.pages]
 	for contest in ballot.contests:
 		mark = mark_database.get_random_mark()
-		latest = create_marked_contest(mark, contest)
-		contests.append(latest)
-	return CNNScan.Ballot.MarkedBallots.MarkedBallot(ballot, contests)
+		count = np.random.choice([1], p=[1])
+		# Generate random selections on ballot. Use set to avoid duplicates.
+		selected = set()
+		for i in range(count):
+			selected.add(random.randint(0, len(contest.options) - 1))
+
+		# MarkedContests needs selected indicies to be a list, not a set.
+		marked = CNNScan.Ballot.MarkedBallots.MarkedContest(contest.index, None, list(selected))
+
+		# For all the options that were selected for this contest, mark the contest.
+		CNNScan.Mark.apply_marks(contest, marked, mark, marked_pages[contest.bounding_rect.page])
+
+		contests.append(marked)
+	return CNNScan.Ballot.MarkedBallots.MarkedBallot(ballot, contests, marked_pages)
 
 # If lazy_nondeterminism is true, then ballots will only be loaded as they are referenced (a good option for files)
 # If it is false, then all ballots will be loaded into memory before __init__ returns, 
@@ -85,30 +88,6 @@ class BallotDataSet(Dataset):
 
 	def __len__(self):
 		return self.ballot_count
-	
-	# Save all of the ballots/contests in the dataset to a file in a pre-determined fashion.
-	def save_to_directory(self, output_directory, print_images=True):
-		if not os.path.exists(output_directory):
-			os.mkdir(output_directory)
-		# TODO: use generator expression to create ballots in batches, to reduce memory pressure on host machine
-		with open(output_directory+"/ballot-definition.p", "wb") as file:
-			pickle.dump(self.ballot_definition, file)
-		for i in range(len(self.marked_ballots)):
-			marked_ballot = self.at(i)
-			print(marked_ballot)
-			# Serialize all contests to PNG's so they may be inspected.
-			# Null out reference to image, so it does not get pickled.
-			ballot_dir = self.ballot_dir(output_directory, i)
-			if not os.path.exists(ballot_dir):
-				os.mkdir(ballot_dir)
-				for j, contest in enumerate(marked_ballot.marked_contest):
-					print(ballot_dir+f"c{j}.png")
-					contest.image.save(ballot_dir+f"c{j}.png")
-					contest.clear_data()
-				
-			# Serialize ballot (without images!) to object in directory structure
-			with open(ballot_dir+self.ballot_name(i), "wb") as file:
-				pickle.dump(marked_ballot, file)
 
 	# Determine the directory where a ballot is stored.
 	def ballot_dir(self, directory, index):
@@ -117,6 +96,37 @@ class BallotDataSet(Dataset):
 	# Determine the name for a contest's image
 	def ballot_name(self, index):
 		return f"ballot{index}.p"
+
+	# Save all of the ballots/contests in the dataset to a file in a pre-determined fashion.
+	def save_to_directory(self, output_directory, print_images=True):
+		if not os.path.exists(output_directory):
+			os.makedirs(output_directory)
+		# TODO: use generator expression to create ballots in batches, to reduce memory pressure on host machine
+		with open(output_directory+"/ballot-definition.p", "wb") as file:
+			pickle.dump(self.ballot_definition, file)
+		for i in range(len(self.marked_ballots)):
+			marked_ballot = self.at(i)
+
+			print(marked_ballot)
+
+			# Require that ballot directories
+			ballot_dir = self.ballot_dir(output_directory, i)
+			if not os.path.exists(ballot_dir):
+				os.mkdir(ballot_dir)
+
+			# Serialize all contests to PNG's so they may be inspected.
+			# Null out reference to image, so it does not get pickled.
+			for j, page in enumerate(marked_ballot.pages):
+				page.save(ballot_dir+f"b{j}.png")
+			marked_ballot.pages = None
+
+			# Remove contest image data; it can be cropped back from the marked pages
+			for j, contest in enumerate(marked_ballot.marked_contest):
+				contest.clear_data()
+				
+			# Serialize ballot (without images!) to object in directory structure
+			with open(ballot_dir+self.ballot_name(i), "wb") as file:
+				pickle.dump(marked_ballot, file)
 
 class DirectoryDataSet(BallotDataSet):
 	def __init__(self, directory, transforms, lazy_nondeterminism=True):
@@ -131,14 +141,23 @@ class DirectoryDataSet(BallotDataSet):
 		assert os.path.exists(directory)
 		fp = self.ballot_name(index)
 		assert os.path.isfile(directory+fp)
+
 		with open(directory+fp, "rb") as file:
 			marked = pickle.load(file)
+
+			# Ballot pages are not saved as part pickle'd format, so that they may be inspected by humans.
+			marked.pages = []
+			print(self.ballot_definition.pages)
+			for i, _ in enumerate(self.ballot_definition.pages):
+				marked.pages.append(Image.open(directory+f"b{i}.png"))
+
+			# Crop pages of marked ballots to contain only individual contests.
+
+			CNNScan.Raster.Raster.crop_contests(self.ballot_definition, marked)
+
+			# Make sure that unpickle'ing gave us a usable ballot.
 			assert isinstance(marked, CNNScan.Ballot.MarkedBallots.MarkedBallot)
-			# TODO: Save entire pages of ballot, crop from entire page of ballot.
-			# Must re-load all the pictures for each contest.
-			for i, contest in enumerate(marked.marked_contest):
-				contest.image = Image.open(directory+f"c{i}.png")
-			#print(marked)
+			
 			return marked
 
 	# Load and return the object containing the ballot definition.
@@ -164,7 +183,6 @@ class DirectoryDataSet(BallotDataSet):
 		#print(count)
 		return count
 
-
 class GeneratingDataSet(BallotDataSet):
 	def __init__(self, ballot_def, markdb, ballot_count, transforms, lazy_nondeterminism=True):
 		self.markdb = markdb
@@ -173,4 +191,6 @@ class GeneratingDataSet(BallotDataSet):
 	def load_ballot(self, index):
 		# We shouldn't be asked to create a new ballot when one already exists.
 		assert self.marked_ballots[index] is None
-		return create_marked_ballot(self.ballot_definition, self.markdb)
+		ret_val = create_marked_ballot(self.ballot_definition, self.markdb)
+		CNNScan.Raster.Raster.crop_contests(self.ballot_definition, ret_val)
+		return ret_val

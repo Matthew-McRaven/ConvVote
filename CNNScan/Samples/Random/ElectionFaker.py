@@ -8,7 +8,7 @@ from faker import Faker
 from CNNScan.Ballot import BallotDefinitions, MarkedBallots, Positions
 import CNNScan.Mark.Marks
 # Create a single, fixed fake race with 4 candidates.
-def create_fake_contest(contest_index=0, min_candidate=1, max_candidates=8, min_xy_per_candidate=(18,8), max_xy_per_candidate=(64,16)):
+def create_fake_contest(pagenum, contest_index=0, min_candidate=1, max_candidates=8, min_xy_per_candidate=(18,16), max_xy_per_candidate=(64,16)):
 	min_x, min_y = min_xy_per_candidate
 	max_x, max_y = max_xy_per_candidate
 	candidate_number = random.randint(min_candidate, max_candidates)
@@ -21,20 +21,20 @@ def create_fake_contest(contest_index=0, min_candidate=1, max_candidates=8, min_
 	y_rolling = 0
 	for i in range(candidate_number):
 		y_size = random.randint(min_y, max_y)
-		bound = Positions.to_pixel_pos(0, y_rolling, x_size, y_rolling+y_size)
+		bound = Positions.to_pixel_pos(0, y_rolling, x_size, y_rolling+y_size, pagenum)
 		options.append(BallotDefinitions.Option(i, fake.name(), bounding_rect=(bound)))
 		locations.append(bound)
 		y_rolling += y_size
 	print(f"{candidate_number} candidates, with a ballot that is {x_size}x{y_rolling}")
 	contest = BallotDefinitions.Contest(contest_index, name=name, description=description,
-		options=options, bounding_rect=Positions.to_pixel_pos(0,0, x_size, y_rolling))
+		options=options, bounding_rect=Positions.to_pixel_pos(0,0, x_size, y_rolling, pagenum))
 	return contest
 
 def create_fake_ballot(min_contests=3, max_contests=3)->BallotDefinitions.Ballot:
 	contests = random.randint(min_contests, max_contests)
 	contests_list = []
 	for i in range(0, contests):
-		current = create_fake_contest(contest_index=i)
+		current = create_fake_contest(i,contest_index=i)
 		contests_list.append(current)
 
 	ballot = BallotDefinitions.Ballot(contests_list)
