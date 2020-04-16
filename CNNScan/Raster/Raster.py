@@ -108,6 +108,7 @@ def crop_template(ballot_def : BallotDefinitions.Ballot):
 
 	return ret_val
 
+# Fill in marked ballot's contests with images cropped from the entire ballot.
 def crop_contests(ballot_def : BallotDefinitions.Ballot, marked_ballot : MarkedBallots.MarkedBallot) -> MarkedBallots.MarkedBallot:
 	# Require that the marked ballot is already marked
 	assert marked_ballot.pages is not None

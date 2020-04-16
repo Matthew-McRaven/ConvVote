@@ -20,7 +20,10 @@ def get_train(config, ballot, module):
 											   torchvision.transforms.Normalize((1,),(127.5,))
 											   #torchvision.transforms.Lambda(lambda x: (1.0 - (x / 127.5)).float())
 											   ])
-	data = CNNScan.Mark.mark_dataset(ballot, transforms, count=50)
+	mark_db = CNNScan.Mark.MarkDatabase()
+	mark_db.insert_mark(CNNScan.Mark.BoxMark()) 
+	data = CNNScan.Reco.Load.MultiGeneratingDataSet((ballot, ballot), mark_db, (50,50), transforms)
+	#data = CNNScan.Reco.Load.GeneratingDataSet(ballot, mark_db, 100, transforms)
 	#print(data.at(0).marked_contest[0].image)
 	load = torch.utils.data.DataLoader(data, batch_size=config['batch_size'], shuffle=True, )
 	return load

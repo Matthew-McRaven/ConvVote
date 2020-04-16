@@ -22,13 +22,15 @@ if __name__ == "__main__":
 	data = CNNScan.Reco.Load.DirectoryDataSet("temp/mont",transforms, False)
 	load = torch.utils.data.DataLoader(data, batch_size=config['batch_size'], shuffle=True, )
 
-	model = CNNScan.Reco.ImgRec.BallotRecognizer(config, data.ballot_definition)
+	assert len(data.all_ballot_definitions()) == 1
+	ballot = data.all_ballot_definitions()[0]
+	model = CNNScan.Reco.ImgRec.BallotRecognizer(config, ballot)
 	print(model)
-	model = CNNScan.Reco.ImgRec.train_single_ballot(model, config, data.ballot_definition, load, load)
+	model = CNNScan.Reco.ImgRec.train_single_ballot(model, config, ballot, load, load)
 
 	# Display a single sample ballot to visualize if training was succesful.
 	#render_data = get_test(config, ballot, module)
 	#print(render_data)
 	#CNNScan.Reco.ImgRec.evaluate_ballots(model, ballot, render_data, config, add_to_ballots=True)
 
-	CNNScan.utils.show_ballot(data.ballot_definition, data.at(0))
+	CNNScan.utils.show_ballot(ballot, data.at(0))

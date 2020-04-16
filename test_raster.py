@@ -24,14 +24,14 @@ if __name__=="__main__":
 
 
 	# create the oregon ballotdefinition object
-	rasterize = CNNScan.Raster.Raster.rasterize_ballot_template
+	rasterize = CNNScan.Raster.Raster.rasterize_ballot_image
 	bd = CNNScan.Ballot.BallotDefinitions 
 
 	# Manually create contests for each entry on the Multnomah county ballot.
 
 
 	# Wrap contests in a ballot definition
-	ballot = bd.Ballot(contests=CNNScan.Samples.Oregon.percents.contests, ballot_file="CNNScan/Samples/Oregon/or2018ballot.pdf")
+	ballot = bd.Ballot(contests=CNNScan.Samples.Oregon.contests, ballot_file="CNNScan/Samples/Oregon/or2018ballot.pdf")
 	# print("ballot:",ballot,"@",ballot.ballot_file)
 	# print("contests:",len(ballot.contests))
 	# # for con in ballot.contests:
@@ -71,7 +71,7 @@ if __name__=="__main__":
 	# Display a single sample ballot to visualize if training was succesful.
 	render_data = CNNScan.Reco.Driver.get_test(config, ballot, CNNScan.Samples.Oregon)
 
-	CNNScan.utils.show_ballot(render_data.dataset.ballot, render_data.dataset.at(0))
+	CNNScan.utils.show_ballot(render_data.dataset.ballot_definition(0), render_data.dataset.at(0))
 	"""for i, contest in enumerate(render_data.dataset.at(0).marked_contest):
 		print(contest.index)
 		if contest.index in [24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3]:

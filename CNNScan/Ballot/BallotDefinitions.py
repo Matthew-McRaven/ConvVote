@@ -37,7 +37,8 @@ class Contest:
 		return super(Contest, self).__getattribute__(attribute)
 
 class Ballot:
-	def __init__(self, contests=[Contest(index=i)  for i in range(0)], ballot_file=""):
+	def __init__(self, contests=[Contest(index=i)  for i in range(0)], ballot_file="", ballot_index=-1):
+		self.ballot_index = ballot_index
 		self.contests = contests
 		self.ballot_file = ballot_file
 		# Store the images for each page of the printed PDF.

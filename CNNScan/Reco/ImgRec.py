@@ -19,7 +19,6 @@ import math
 
 class ImageRecognitionCore(nn.Module):
 	def __init__(self, config, input_dimensions):
-		print(input_dimensions)
 		super(ImageRecognitionCore, self).__init__()
 		self.input_dimensions = input_dimensions
 
