@@ -1,6 +1,7 @@
 import typing
 import os
 import math
+import tempfile
 
 import numpy
 from pdf2image import convert_from_path, convert_from_bytes
@@ -41,7 +42,7 @@ def fix_rect(object, width, height, page, old_width=1, old_height=1, width_offse
 
 # Load the PDF associated with a ballot template, convert the PDF to a PIL.Image,
 # convert bounding rectangles from %'s to pixels, and store each of the page's images in ballot.pages.
-def rasterize_ballot_image(ballot : BallotDefinitions.Ballot, directory : str, dpi:int = 400):
+def rasterize_ballot_image(ballot : BallotDefinitions.Ballot, dpi:int = 400):
 	# Establish pre-conditions that ballots have relative coordinates.
 	# print("ballot",ballot,"\ndirectory",directory)
 	for contest in ballot.contests:
@@ -49,17 +50,20 @@ def rasterize_ballot_image(ballot : BallotDefinitions.Ballot, directory : str, d
 		for option in contest.options:
 			assert isinstance(option.bounding_rect, CNNScan.Ballot.Positions.RelativePosition)
 
-	bf = convert_from_path(ballot.ballot_file, output_folder=directory,output_file="tmp",dpi=dpi)
-	temp = os.listdir(directory)
-	ballot_pages = []
-	for img in temp:
-		if "tmp" in img:
-			ballot_pages.append(img)
-	ballot_pages.sort()
+	with tempfile.TemporaryDirectory() as path:
+		convert_from_path(ballot.ballot_file, output_folder=path,output_file="tmp",dpi=dpi)
+		temp = os.listdir(path)
+		ballot_pages = []
+		for img in temp:
+			if "tmp" in img:
+				ballot_pages.append(img)
+		ballot_pages.sort()
 
-	# Load all ballot pages as PNGs into memory.
-	for page in ballot_pages:
-		ballot.pages.append(Image.open(f"{directory}/{page}").convert("RGBA"))
+		# Load all ballot pages as PNGs into memory.
+		for page in ballot_pages:
+			image = Image.open(f"{path}/{page}").convert("RGBA")
+			ballot.pages.append(image.copy())
+			image.close()
 
 	# Adjusted contest, option coordinates from %'s to pixels.
 	for contest in ballot.contests:

@@ -9,11 +9,17 @@ import numpy as np
 import numpy.random
 import pylab as plt
 import torch
+import torchvision
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 
 import CNNScan.Ballot.MarkedBallots
-
+def_trans =  torchvision.transforms.Compose([torchvision.transforms.Lambda(lambda x: np.average(x, axis=-1, weights=[1,1,1,0],returned=True)[0]),
+					                         torchvision.transforms.ToTensor(),
+											 torchvision.transforms.Lambda(lambda x: x.float()),
+											 torchvision.transforms.Normalize((1,),(127.5,))
+											 #torchvision.transforms.Lambda(lambda x: (1.0 - (x / 127.5)).float())
+											])
 # Create a fake ballot image, and select a random candiate to win.
 # Black out all the pixels corresponding to the location on the ballot representing the candidate.
 def create_marked_contest(mark, contest:CNNScan.Ballot.BallotDefinitions.Contest):
@@ -50,7 +56,7 @@ def create_marked_ballot(ballot, mark_database):
 # If it is false, then all ballots will be loaded into memory before __init__ returns, 
 # which is a good choice for generating ballots deterministically
 class SingleBallotDataSet(Dataset):
-	def __init__(self, ballot_count,  transforms, lazy_nondeterminism=True):
+	def __init__(self, ballot_count,  transforms=def_trans, lazy_nondeterminism=True):
 		self.ballot_count = ballot_count
 		self.marked_ballots = [None] * ballot_count
 		self.transforms = transforms
@@ -118,8 +124,6 @@ class SingleBallotDataSet(Dataset):
 		for i in range(len(self.marked_ballots)):
 			marked_ballot = self.at(i)
 
-			print(marked_ballot)
-
 			# Require that ballot directories
 			ballot_dir = self.ballot_dir(output_directory, i)
 			if not os.path.exists(ballot_dir):
@@ -140,7 +144,7 @@ class SingleBallotDataSet(Dataset):
 				pickle.dump(marked_ballot, file)
 
 class DirectoryDataSet(SingleBallotDataSet):
-	def __init__(self, directory, transforms, lazy_nondeterminism=True):
+	def __init__(self, directory, transforms=def_trans, lazy_nondeterminism=True):
 		self.directory = directory
 		self._ballot_definition = self.load_ballot_definition()
 		super(DirectoryDataSet, self).__init__(self.count_ballots(), transforms, lazy_nondeterminism=lazy_nondeterminism)
@@ -173,7 +177,6 @@ class DirectoryDataSet(SingleBallotDataSet):
 
 			# Ballot pages are not saved as part pickle'd format, so that they may be inspected by humans.
 			marked.pages = []
-			print(self._ballot_definition.pages)
 			for i, _ in enumerate(self._ballot_definition.pages):
 				marked.pages.append(Image.open(directory+f"b{i}.png"))
 
@@ -192,11 +195,9 @@ class DirectoryDataSet(SingleBallotDataSet):
 			with open(self.directory+"/ballot-definition.p", "rb") as file:
 				template = pickle.load(file)
 				assert isinstance(template, CNNScan.Ballot.BallotDefinitions.Ballot)
-				#print(template)
 				return template
 		else:
 			raise ValueError(f"No ballot definition found at {self.directory}")
-		raise NotImplementedError("Can't yet read from directories")
 
 	# Figure out the number of marked ballot files in the current directory.
 	def count_ballots(self):
@@ -210,7 +211,7 @@ class DirectoryDataSet(SingleBallotDataSet):
 		return count
 
 class GeneratingDataSet(SingleBallotDataSet):
-	def __init__(self, ballot_def, markdb, ballot_count, transforms, lazy_nondeterminism=True):
+	def __init__(self, ballot_def, markdb, ballot_count, transforms=def_trans, lazy_nondeterminism=True):
 		self.markdb = markdb
 		self._ballot_definition = ballot_def
 		super(GeneratingDataSet, self).__init__(ballot_count, transforms, lazy_nondeterminism=lazy_nondeterminism)
@@ -237,7 +238,7 @@ class GeneratingDataSet(SingleBallotDataSet):
 		return ret_val
 
 class MultiGeneratingDataSet(Dataset):
-	def __init__(self, ballot_definition_list, markdb, count_list, transforms, lazy_nondeterminism=True):
+	def __init__(self, ballot_definition_list, markdb, count_list, transforms=def_trans, lazy_nondeterminism=True):
 		self.markdb = markdb
 		assert len(ballot_definition_list) == len(count_list)
 		self.datasets = []
