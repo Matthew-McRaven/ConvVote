@@ -11,7 +11,6 @@ class Option:
 		self.description = description
 		assert isinstance(bounding_rect, Positions.RelativePosition) or isinstance(bounding_rect, Positions.PixelPosition)
 		self.bounding_rect = bounding_rect
-		self.scale = "%"
 
 class Contest:
 	def __init__(self, index=0, name="", description="", options=[Option() for i in range(0)],
@@ -31,12 +30,16 @@ class Contest:
 			assert self.bounding_rect.lower_right.x >= option.bounding_rect.lower_right.x
 
 		self.contest_file = contest_file
-		# This image represents the unmarked contest which this class describes.
-		# Loading the unmarked contest image many times is very costly, and so it should 
-		# be cached in self.image on first use.
-		self.image = None
+
+	# Assert that removed attributes have been removed (for debugging purposes).
+	def __getattribute__(self, attribute):
+		assert attribute is not "image"
+		return super(Contest, self).__getattribute__(attribute)
 
 class Ballot:
 	def __init__(self, contests=[Contest(index=i)  for i in range(0)], ballot_file=""):
 		self.contests = contests
 		self.ballot_file = ballot_file
+		# Store the images for each page of the printed PDF.
+		# To be filled in during rasterization from PDF.
+		self.pages = []

@@ -323,7 +323,7 @@ def get_sample_ballot():
 											   #torchvision.transforms.Lambda(lambda x: (1.0 - (x / 127.5)).float())
 											   ])
 	print(os.path.abspath(ballot.ballot_file))
-	ballot = CNNScan.Raster.Raster.rasterize_ballot_template(ballot, output_directory+"/ballot_template", 400)
+	ballot = CNNScan.Raster.Raster.rasterize_ballot_image(ballot, output_directory+"/ballot_template", 100)
 	return ballot
 	
 del bd

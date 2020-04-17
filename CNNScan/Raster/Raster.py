@@ -30,10 +30,18 @@ class Rasterizer:
 			mark = self.mark_database.get_random_mark()
 
 
+# Convert a bounding rectangle from one aspect ratio to another.
+def fix_rect(object, width, height, page, old_width=1, old_height=1, width_offset=0, height_offset=0):
+	x1 = round(width/old_width * (object.bounding_rect.lower_right.x - width_offset))
+	y1 = round(height/old_height * (object.bounding_rect.lower_right.y - height_offset))
+	x0 = round(width/old_width * (object.bounding_rect.upper_left.x - width_offset))
+	y0 = round(height/old_height * (object.bounding_rect.upper_left.y - height_offset))
+	#print(x0, y1, x1, y1)
+	object.bounding_rect = CNNScan.Ballot.Positions.to_pixel_pos(x0, y0, x1, y1, page)
 
-# Take in a ballot, which contains a PDF file of a ballot. Coordinates are %'s relative to the size of the ballot PDF.
-# All coordinates of the returned ballot should be absolute (i.e. in pixels) rather than percentages
-def rasterize_ballot_template(ballot : BallotDefinitions.Ballot, directory : str, dpi:int = 400) -> BallotDefinitions.Ballot:
+# Load the PDF associated with a ballot template, convert the PDF to a PIL.Image,
+# convert bounding rectangles from %'s to pixels, and store each of the page's images in ballot.pages.
+def rasterize_ballot_image(ballot : BallotDefinitions.Ballot, directory : str, dpi:int = 400):
 	# Establish pre-conditions that ballots have relative coordinates.
 	# print("ballot",ballot,"\ndirectory",directory)
 	for contest in ballot.contests:
@@ -41,7 +49,6 @@ def rasterize_ballot_template(ballot : BallotDefinitions.Ballot, directory : str
 		for option in contest.options:
 			assert isinstance(option.bounding_rect, CNNScan.Ballot.Positions.RelativePosition)
 
-	# converty pdf of ballot and save the ballot png
 	bf = convert_from_path(ballot.ballot_file, output_folder=directory,output_file="tmp",dpi=dpi)
 	temp = os.listdir(directory)
 	ballot_pages = []
@@ -49,61 +56,79 @@ def rasterize_ballot_template(ballot : BallotDefinitions.Ballot, directory : str
 		if "tmp" in img:
 			ballot_pages.append(img)
 	ballot_pages.sort()
-	# ballot_pages is ordered list of individual pages of pdf ballot saved as pngs
-	# print("pages:",ballot_pages)
-	converted_contests = []
-	cc=0
+
+	# Load all ballot pages as PNGs into memory.
+	for page in ballot_pages:
+		ballot.pages.append(Image.open(f"{directory}/{page}").convert("RGBA"))
+
+	# Adjusted contest, option coordinates from %'s to pixels.
 	for contest in ballot.contests:
-		# TODO: Figure out how to rasterize an individual contest to a properly size PNG
-		bounding = contest.bounding_rect
-		ballot_png=Image.open(f"{directory}/{ballot_pages[bounding.page]}")
-		width,height = ballot_png.size
-		# We will be cropping the image to only contain the contest and nothing else, so we must "fix" the bounding rectanble
-		
-		contest_img=ballot_png.crop((width*bounding.upper_left.x,height*bounding.upper_left.y,width*bounding.lower_right.x,height*bounding.lower_right.y))
-		# Base contest coordinates on the dimension of the image, to avoid roundoff errors.
-		contest_pos=to_pos(0, 0, contest_img.width, contest_img.height)
-		print(contest_pos)
-		# (subimage, contest_pos) = rasterize_contest(contest, numpy.ndarray((0,0)))
-		# TODO: Convert options from relative to absolute coordinates.
-		converted_options = []
-		cw,ch = contest_img.size
+		page = contest.bounding_rect.page
+		width,height = ballot.pages[page].size
+		#print(option.bounding_rect)
+		fix_rect(contest, width, height, page)
+		#print(contest.bounding_rect)
 		for option in contest.options:
-			# make relative positions precise pixel locations
-			# multiply relative values by height and width of this contest
-			option_bounding=option.bounding_rect
-			# Subtract the number of pixels "cropped off" above.
-			new_x1=round(width*option_bounding.upper_left.x) - round(width*bounding.upper_left.x)
-			new_y1=round(height*option_bounding.upper_left.y) - round(height*bounding.upper_left.y)
-			new_x2=round(width*option_bounding.lower_right.x) - round(width*bounding.upper_left.x)
-			new_y2=round(height*option_bounding.lower_right.y) - round(height*bounding.upper_left.y)
-			new_opt = BallotDefinitions.Option(option.index, option.description, to_pos(new_x1,new_y1,new_x2,new_y2))
-			# print("new option position",to_pos(new_x1,new_y1,new_x2,new_y2))
-			converted_options.append(new_opt)
+			#print(option.bounding_rect)
+			fix_rect(option, width, height, page)
+			#print(option.bounding_rect)
+	return ballot
 
-		new_contest = BallotDefinitions.Contest(contest.index, contest.contest_name, contest.description, converted_options, contest_pos)
-		converted_contests.append(new_contest)
-		# TODO: Determine where contest image is saved.
-		new_contest.file = directory+"/cont"+str(cc)+".png"
-		new_contest.image = contest_img.convert("RGBA")
-		print(f"{new_contest.index}:  {new_contest.bounding_rect}")
-		print(new_contest.image)
-		for option in new_contest.options:
-			print(f"{option.index}:  {option.bounding_rect}")
-		print("\n")
-		cc+=1
-		# words = input("contest successfully created,\npress enter")
-	ret_val = BallotDefinitions.Ballot(converted_contests, ballot.ballot_file)
-
+# TODO: 
+# Return a new ballot template where contests, bounding 
+def crop_template(ballot_def : BallotDefinitions.Ballot):
+	converted_contests = []
 	# Assert postconditions that all positions are now absolute, and that each contest has an image.
+	for contest in ballot_def.contest:
+		page = contest.bounding_rect.page
+		width,height = ballot_def.pages[page].size
+
+		
+		x0, y0 = contest.bounding_rect.upper_left.x, contest.bounding_rect.upper_left.y
+		x1, y1 = contest.bounding_rect.lower_right.x, contest.bounding_rect.lower_right.y
+		#print(option.bounding_rect)
+		raise NotImplementedError("Have not converted ballot templates yet.")
+		# TODO: Fix bounding rectangles on contests
+		#fix_rect(marked_contest, 1, 1, page, x0, y0)
+		#print(contest.bounding_rect)
+		# TODO: Fix bounding rectangles on options
+		#for option in marked_contest.options:
+			#print(option.bounding_rect)
+			#fix_rect(option, 1, 1, page, x0, y0)
+			#print(option.bounding_rect)
+
+	ret_val = BallotDefinitions.Ballot(converted_contests, ballot_def.ballot_file)
+	ret_val.pages = ballot_def.pages
+
 	for contest in ret_val.contests:
 		assert isinstance(contest.bounding_rect, CNNScan.Ballot.Positions.PixelPosition)
 		assert contest.image is not None
 		for option in contest.options:
 			assert isinstance(option.bounding_rect, CNNScan.Ballot.Positions.PixelPosition)
+
 	return ret_val
 
-# TODO: Convert a relative-positioned contest to an 
-def rasterize_contest(Contest : BallotDefinitions.Contest, ballot_image : numpy.ndarray) -> typing.Tuple[numpy.ndarray, CNNScan.Ballot.Positions.PixelPosition]:
-	return numpy.ndarray((0,0)), CNNScan.Ballot.Positions.PixelPosition()
+def crop_contests(ballot_def : BallotDefinitions.Ballot, marked_ballot : MarkedBallots.MarkedBallot) -> MarkedBallots.MarkedBallot:
+	# Require that the marked ballot is already marked
+	assert marked_ballot.pages is not None
+	#converted_contests = []
+	# TODO: Create new ballot definition rather than update in place
+	# Adjusted contest, option coordinates from %'s to pixels.
+	for marked_contest in marked_ballot.marked_contest:
+		index = marked_contest.index
+		page = ballot_def.contests[index].bounding_rect.page
+		width,height = marked_ballot.pages[page].size
 
+		bounding_rect = ballot_def.contests[marked_contest.index].bounding_rect
+		x0, y0 = bounding_rect.upper_left.x, bounding_rect.upper_left.y
+		x1, y1 = bounding_rect.lower_right.x, bounding_rect.lower_right.y
+		#print(option.bounding_rect)
+		marked_contest.image = marked_ballot.pages[page].crop((x0, y0, x1, y1))
+		# TODO: Fix bounding rectangles on contests
+		#fix_rect(marked_contest, 1, 1, page, x0, y0)
+		#print(contest.bounding_rect)
+		# TODO: Fix bounding rectangles on options
+		#for option in marked_contest.options:
+			#print(option.bounding_rect)
+			#fix_rect(option, 1, 1, page, x0, y0)
+			#print(option.bounding_rect)

@@ -21,7 +21,15 @@ class MarkDatabase:
 	def get_random_mark(self):
 		return self.marks[random.randint(0, len(self.marks)-1)]
 
-class XMark:
+# Allow all mark classes to be registered (and referenced) the first time they are imported.
+class MarkBase:
+    subclasses = []
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls.subclasses.append(cls)
+
+class XMark(MarkBase):
 	def generate(self, image: Image, mark_shape: CNNScan.Ballot.Positions.PixelPosition) -> Image:
 		im = Image.new("RGBA",size=mark_shape.size())
 		draw = ImageDraw.Draw(im)
@@ -33,7 +41,7 @@ class XMark:
 		return self.generate(*args, **kwargs)
 
 
-class BoxMark:
+class BoxMark(MarkBase):
 	def generate(self, image: Image, mark_shape: CNNScan.Ballot.Positions.PixelPosition) -> Image:
 		#print(mark_shape)
 		im = Image.new("RGBA",size=mark_shape.size())
@@ -44,8 +52,7 @@ class BoxMark:
 	def __call__(self, *args, **kwargs):
 		return self.generate(*args, **kwargs)
 
-class InvertMark:
-	
+class InvertMark(MarkBase):
 	def generate(self, image: Image, mark_shape: CNNScan.Ballot.Positions.PixelPosition) -> Image:
 		ul, lr = mark_shape.upper_left, mark_shape.lower_right
 		as_rgb = image.crop(box=(ul.x,ul.y,lr.x,lr.y)).convert(mode="RGB")
@@ -83,12 +90,12 @@ class AssignApply:
 		return self.apply_mark(*args, **kwargs)
 
 
-def apply_marks(contest, marked: CNNScan.Ballot.MarkedBallots.MarkedContest, mark, apply=AssignApply()):
+def apply_marks(contest, marked: CNNScan.Ballot.MarkedBallots.MarkedContest, mark, page, apply=AssignApply()):
 	for which in marked.actual_vote_index:
-		apply(marked.image, contest.options[which].bounding_rect, mark)
+		apply(page, contest.options[which].bounding_rect, mark)
 	return marked
 
-def mark_dataset(ballot:CNNScan.Ballot.BallotDefinitions.Ballot, count=100, transform=None):
+def mark_dataset(ballot:CNNScan.Ballot.BallotDefinitions.Ballot, transforms, count=100):
 	mark_db = CNNScan.Mark.MarkDatabase()
 	mark_db.insert_mark(CNNScan.Mark.BoxMark())
-	return CNNScan.Reco.Load.ImageDataSet(ballot, mark_db, count, transform=transform)
+	return CNNScan.Reco.Load.GeneratingDataSet(ballot, mark_db, count, transforms)
