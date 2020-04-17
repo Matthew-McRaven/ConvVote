@@ -32,15 +32,17 @@ class TestLoadDisk(unittest.TestCase):
 
 	# Check that data can be loaded from the disk
 	def test_raster(self):
-		rasterize = CNNScan.Raster.Raster.rasterize_ballot_image
 		bd = CNNScan.Ballot.BallotDefinitions 
 
-		ballot = bd.Ballot(contests=CNNScan.Samples.Oregon.contests, ballot_file="CNNScan/Samples/Oregon/or2018ballot.pdf")
+		oregon = CNNScan.Samples.Oregon
+		self.ballot_factory = CNNScan.Ballot.BallotDefinitions.BallotFactory()
+		ballot = self.ballot_factory.Ballot(contests=oregon.contests, ballot_file=oregon.ballot_file)
+		
 		
 		for contest in ballot.contests:
 			print(contest.bounding_rect)
 
-		ballot = rasterize(ballot , 400)
+		ballot = CNNScan.Raster.Raster.rasterize_ballot_image(ballot , 400)
 		#print(value)
 		config = CNNScan.Reco.Settings.generate_default_settings()
 		# Display a single sample ballot to visualize if training was succesful.

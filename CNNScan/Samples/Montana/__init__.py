@@ -306,13 +306,11 @@ c32_opt.append(bd.Option(1, "B", to_pos(.6490, .6812, .6858, .6918, 1)))
 c32 = bd.Contest(32, "c32", "", c32_opt, to_pos(.6422, .6154, .9118, .7135, 1), "c32.png")
 contests.append(c32)
 
-# contests = [c00]
-# Wrap contests in a ballot definition
-ballot = bd.Ballot(contests=contests, ballot_file="CNNScan/Samples/Montana/min2018.pdf")
+ballot_file="CNNScan/Samples/Montana/min2018.pdf"
+
 # Provide interface to access ballot.
-def get_sample_ballot():
-	global ballot
-	local_ballot = copy.deepcopy(ballot)
-	return CNNScan.Raster.Raster.rasterize_ballot_image(local_ballot, 400)
+def get_sample_ballot(factory):
+	local_ballot = factory.Ballot(contests=contests, ballot_file=ballot_file)
+	return CNNScan.Raster.Raster.rasterize_ballot_image(local_ballot, 100)
 	
 del bd

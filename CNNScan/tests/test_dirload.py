@@ -16,7 +16,9 @@ class TestLoadDisk(unittest.TestCase):
 		self.config = Settings.generate_default_settings()
 		self.config['epochs'] = 1
 		# Create fake data that can be used 
-		CNNScan.Mark.main(dpi=100, outdir="temp/test", count=5)
+		factory = CNNScan.Ballot.BallotDefinitions.BallotFactory()
+		ballot = factory.Ballot(CNNScan.Samples.Oregon.contests, ballot_file=CNNScan.Samples.Oregon.ballot_file)
+		CNNScan.Mark.main(ballot=ballot, dpi=100, outdir="temp/test", count=5)
 		self.data = CNNScan.Reco.Load.DirectoryDataSet("temp/test",CNNScan.Reco.Load.def_trans, False)
 		self.load = torch.utils.data.DataLoader(self.data, batch_size=self.config['batch_size'], shuffle=True)
 

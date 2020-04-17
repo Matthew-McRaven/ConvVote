@@ -36,7 +36,8 @@ def get_test(config, ballot, module):
 # Train a neural network to recognize the results of a single contest for a single election
 def contest_entry_point(config, module=CNNScan.Samples.Oregon):
 	# TODO: Load real election information from a file.
-	ballot = module.get_sample_ballot()
+	ballot_factory = CNNScan.Ballot.BallotDefinitions.BallotFactory()
+	ballot = module.get_sample_ballot(ballot_factory)
 	#config['target_channels'] = 1
 	# TODO: scale BallotRecognizer based on election output size
 	model = ImgRec.BallotRecognizer(config, ballot)

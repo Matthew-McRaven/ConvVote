@@ -18,12 +18,13 @@ class GenerateAllMarks(unittest.TestCase):
 		self.markdb.insert_mark(CNNScan.Mark.BoxMark())
 		self.markdb.insert_mark(CNNScan.Mark.InvertMark())
 		self.markdb.insert_mark(CNNScan.Mark.XMark())
+		self.ballot_factory = CNNScan.Ballot.BallotDefinitions.BallotFactory()
 		
 
 	# Check that data can be loaded from the disk
 	def test_random(self):
 		# Create fake data that can be used 
-		data = CNNScan.Reco.Load.GeneratingDataSet(CNNScan.Samples.Random.get_sample_ballot(), self.markdb, 10)
+		data = CNNScan.Reco.Load.GeneratingDataSet(CNNScan.Samples.Random.get_sample_ballot(self.ballot_factory), self.markdb, 10)
 		load = torch.utils.data.DataLoader(data, batch_size=self.config['batch_size'], shuffle=True)
 		assert len(data.all_ballot_definitions()) == 1
 		ballot = data.all_ballot_definitions()[0]
@@ -33,7 +34,7 @@ class GenerateAllMarks(unittest.TestCase):
 	# Check that data can be loaded from the disk
 	def test_oregon(self):
 		# Create fake data that can be used 
-		data = CNNScan.Reco.Load.GeneratingDataSet(CNNScan.Samples.Oregon.get_sample_ballot(), self.markdb, 10)
+		data = CNNScan.Reco.Load.GeneratingDataSet(CNNScan.Samples.Oregon.get_sample_ballot(self.ballot_factory), self.markdb, 10)
 		load = torch.utils.data.DataLoader(data, batch_size=self.config['batch_size'], shuffle=True)
 		assert len(data.all_ballot_definitions()) == 1
 		ballot = data.all_ballot_definitions()[0]
@@ -43,7 +44,7 @@ class GenerateAllMarks(unittest.TestCase):
 	# Check that data can be loaded from the disk
 	def test_montana(self):
 		# Create fake data that can be used 
-		data = CNNScan.Reco.Load.GeneratingDataSet(CNNScan.Samples.Montana.get_sample_ballot(), self.markdb, 10)
+		data = CNNScan.Reco.Load.GeneratingDataSet(CNNScan.Samples.Montana.get_sample_ballot(self.ballot_factory), self.markdb, 10)
 		load = torch.utils.data.DataLoader(data, batch_size=self.config['batch_size'], shuffle=True)
 		assert len(data.all_ballot_definitions()) == 1
 		ballot = data.all_ballot_definitions()[0]

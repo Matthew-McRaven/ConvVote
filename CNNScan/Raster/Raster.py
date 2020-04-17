@@ -2,7 +2,7 @@ import typing
 import os
 import math
 import tempfile
-
+import copy
 import numpy
 from pdf2image import convert_from_path, convert_from_bytes
 from pdf2image.exceptions import (
@@ -38,7 +38,7 @@ def fix_rect(object, width, height, page, old_width=1, old_height=1, width_offse
 	x0 = round(width/old_width * (object.bounding_rect.upper_left.x - width_offset))
 	y0 = round(height/old_height * (object.bounding_rect.upper_left.y - height_offset))
 	#print(x0, y1, x1, y1)
-	object.bounding_rect = CNNScan.Ballot.Positions.to_pixel_pos(x0, y0, x1, y1, page)
+	return CNNScan.Ballot.Positions.to_pixel_pos(x0, y0, x1, y1, page)
 
 # Load the PDF associated with a ballot template, convert the PDF to a PIL.Image,
 # convert bounding rectangles from %'s to pixels, and store each of the page's images in ballot.pages.
@@ -65,18 +65,28 @@ def rasterize_ballot_image(ballot : BallotDefinitions.Ballot, dpi:int = 400):
 			ballot.pages.append(image.copy())
 			image.close()
 
+	converted_contests=[]
 	# Adjusted contest, option coordinates from %'s to pixels.
 	for contest in ballot.contests:
 		page = contest.bounding_rect.page
+		new_contest = copy.copy(contest)
 		width,height = ballot.pages[page].size
 		#print(option.bounding_rect)
-		fix_rect(contest, width, height, page)
+		new_contest.bounding_rect=fix_rect(contest, width, height, page)
 		#print(contest.bounding_rect)
+		converted_options=[]
 		for option in contest.options:
+			new_option=copy.copy(option)
 			#print(option.bounding_rect)
-			fix_rect(option, width, height, page)
+			new_option.bounding_rect=fix_rect(option, width, height, page)
 			#print(option.bounding_rect)
-	return ballot
+			converted_options.append(new_option)
+
+		new_contest.options=converted_options
+		converted_contests.append(new_contest)
+	new_ballot = copy.copy(ballot)
+	new_ballot.contests = converted_contests
+	return new_ballot
 
 # TODO: 
 # Return a new ballot template where contests, bounding 

@@ -30,14 +30,14 @@ def create_fake_contest(pagenum, contest_index=0, min_candidate=1, max_candidate
 		options=options, bounding_rect=Positions.to_pixel_pos(0,0, x_size, y_rolling, pagenum))
 	return contest
 
-def create_fake_ballot(min_contests=3, max_contests=3)->BallotDefinitions.Ballot:
+def create_fake_ballot(factory, min_contests=3, max_contests=3)->BallotDefinitions.Ballot:
 	contests = random.randint(min_contests, max_contests)
 	contests_list = []
 	for i in range(0, contests):
 		current = create_fake_contest(i,contest_index=i)
 		contests_list.append(current)
 
-	ballot = BallotDefinitions.Ballot(contests_list)
+	ballot = factory.Ballot(contests_list)
 	return ballot
 
 # Create random noise with a dimensions matching that of the ballot.

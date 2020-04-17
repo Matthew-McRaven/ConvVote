@@ -10,10 +10,9 @@ import numpy as np
 
 import CNNScan.Samples.Oregon
 import CNNScan.Raster
-def main(**kwargs):
+def main(ballot, **kwargs):
 	# Determine number of images / marking conditions
 	# Load the ballot definition
-	ballot = copy.deepcopy(CNNScan.Samples.Oregon.ballot)
 	# Create output directory.
 	output_directory = os.path.abspath(kwargs['outdir'])
 
@@ -34,4 +33,7 @@ if __name__ == "__main__":
 	parser.add_argument("--outdir",help="Directory in which to store files", required=True, nargs=1)
 	parser.add_argument("--count", default=100, help="Directory in which to store files", type=int)
 	parser.add_argument("--dpi", default=400, help="DPI at which to write the ballots", type=int)
+	#ballot = copy.deepcopy(CNNScan.Samples.Oregon.ballot)
+	factory = CNNScan.Ballot.BallotDefinitions.BallotFactory()
+	factory.Ballot(CNNScan.Samples.Oregon.contests, ballot_file=CNNScan.Samples.Oregon.ballot_file)
 	main(**vars(parser.parse_args()))

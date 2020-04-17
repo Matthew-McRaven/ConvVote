@@ -209,14 +209,10 @@ c24_opt.append(bd.Option(4, "E", to_pos(.0621, .4593, .0833, .4692,0)))
 c24_opt.append(bd.Option(5, "F", to_pos(.0621, .4772, .0833, .4871,0)))
 c24 = bd.Contest(24, "c24", "", c24_opt, to_pos(.0310, .3423, .3185, .4901,0), "c24.png")
 contests.append(c24)
-
-# contests = [c00]
-# Wrap contests in a ballot definition
-ballot = bd.Ballot(contests=contests, ballot_file="CNNScan/Samples/Oregon/or2018ballot.pdf")
+ballot_file="CNNScan/Samples/Oregon/or2018ballot.pdf"
 # Provide interface to access ballot.
-def get_sample_ballot():
-	global ballot
-	local_ballot = copy.deepcopy(ballot)
+def get_sample_ballot(factory):
+	local_ballot = factory.Ballot(contests=contests, ballot_file=ballot_file)
 	return CNNScan.Raster.Raster.rasterize_ballot_image(local_ballot, 400)
 
 del bd

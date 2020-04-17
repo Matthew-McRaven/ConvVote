@@ -44,3 +44,12 @@ class Ballot:
 		# Store the images for each page of the printed PDF.
 		# To be filled in during rasterization from PDF.
 		self.pages = []
+
+class BallotFactory:
+	def __init__(self):
+		self.ballots = []
+
+	def Ballot(self, *args, **kwargs):
+		new_ballot = Ballot(*args, ballot_index=len(self.ballots), **kwargs)
+		self.ballots.append(new_ballot)
+		return new_ballot
