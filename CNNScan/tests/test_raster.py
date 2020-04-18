@@ -27,26 +27,21 @@ import numpy as np
 from CNNScan.Reco import Driver, Settings
 import CNNScan.Samples
 
-class TestLoadDisk(unittest.TestCase):
+class TestConvertPDF2Image(unittest.TestCase):
 		
 
 	# Check that data can be loaded from the disk
 	def test_raster(self):
-		bd = CNNScan.Ballot.BallotDefinitions 
 
 		oregon = CNNScan.Samples.Oregon
-		self.ballot_factory = CNNScan.Ballot.BallotDefinitions.BallotFactory()
-		ballot = self.ballot_factory.Ballot(contests=oregon.contests, ballot_file=oregon.ballot_file)
-		
-		
-		for contest in ballot.contests:
-			print(contest.bounding_rect)
+		ballot_factory = CNNScan.Ballot.BallotDefinitions.BallotFactory()
+		ballot = ballot_factory.Ballot(contests=oregon.contests, ballot_file=oregon.ballot_file)
 
 		ballot = CNNScan.Raster.Raster.rasterize_ballot_image(ballot , 400)
 		#print(value)
 		config = CNNScan.Reco.Settings.generate_default_settings()
 		# Display a single sample ballot to visualize if training was succesful.
-		render_data = CNNScan.Reco.Driver.get_test(config, ballot, CNNScan.Samples.Oregon)
+		render_data = CNNScan.Reco.Driver.get_test(config, ballot_factory)
 
 		#CNNScan.utils.show_ballot(render_data.dataset.ballot_definition(0), render_data.dataset.at(0))
 		"""for i, contest in enumerate(render_data.dataset.at(0).marked_contest):

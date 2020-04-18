@@ -10,7 +10,7 @@ import numpy as np
 
 import CNNScan.Samples.Oregon
 import CNNScan.Raster
-def main(ballot, **kwargs):
+def main(factory, **kwargs):
 	# Determine number of images / marking conditions
 	# Load the ballot definition
 	# Create output directory.
@@ -19,13 +19,14 @@ def main(ballot, **kwargs):
 	transforms=CNNScan.Reco.Load.def_trans
 	#print(os.path.abspath(ballot.ballot_file))
 
-	ballot = CNNScan.Raster.Raster.rasterize_ballot_image(ballot, kwargs['dpi'])
+	for i,ballot in enumerate(factory.ballots):
+		factory.ballots[i] = CNNScan.Raster.Raster.rasterize_ballot_image(ballot, kwargs['dpi'])
 
 	# Determine marking parameters
 	mark_db = CNNScan.Mark.MarkDatabase()
 	mark_db.insert_mark(CNNScan.Mark.BoxMark())
 	# Create marked ballots
-	marked_ballots = CNNScan.Reco.Load.GeneratingDataSet(ballot, mark_db, kwargs['count'], transforms, True )
+	marked_ballots = CNNScan.Reco.Load.GeneratingDataSet(factory, mark_db, kwargs['count'], transforms, True )
 	marked_ballots.save_to_directory(output_directory)
 	
 if __name__ == "__main__":
@@ -36,4 +37,4 @@ if __name__ == "__main__":
 	#ballot = copy.deepcopy(CNNScan.Samples.Oregon.ballot)
 	factory = CNNScan.Ballot.BallotDefinitions.BallotFactory()
 	factory.Ballot(CNNScan.Samples.Oregon.contests, ballot_file=CNNScan.Samples.Oregon.ballot_file)
-	main(**vars(parser.parse_args()))
+	main(factory, **vars(parser.parse_args()))

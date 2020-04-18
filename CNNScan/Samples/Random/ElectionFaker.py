@@ -16,18 +16,24 @@ def create_fake_contest(pagenum, contest_index=0, min_candidate=1, max_candidate
 	name = fake.catch_phrase()
 	description = fake.text()
 	options = []
-	locations = []
 	x_size = random.randint(min_x, max_x)
 	y_rolling = 0
+	sizes = [random.randint(min_y, max_y) for y in range(candidate_number)]
+	max_y_size = np.sum(sizes)
 	for i in range(candidate_number):
-		y_size = random.randint(min_y, max_y)
-		bound = Positions.to_pixel_pos(0, y_rolling, x_size, y_rolling+y_size, pagenum)
-		options.append(BallotDefinitions.Option(i, fake.name(), bounding_rect=(bound)))
-		locations.append(bound)
+		y_size = sizes[i]
+		rel_bound = Positions.to_percent_pos(0, y_rolling/max_y_size, 1, (y_rolling+y_size)/max_y_size, pagenum)
+		abs_bound = Positions.to_pixel_pos(0, y_rolling, max_x, y_rolling+y_size, pagenum)
+		new_option = BallotDefinitions.Option(i, fake.name(), rel_bounding_rect=(rel_bound))
+		new_option.abs_bounding_rect = abs_bound
+		options.append(new_option)
 		y_rolling += y_size
 	print(f"{candidate_number} candidates, with a ballot that is {x_size}x{y_rolling}")
+
+	abs_bound = Positions.to_pixel_pos(0,0, x_size, y_rolling, pagenum)
 	contest = BallotDefinitions.Contest(contest_index, name=name, description=description,
-		options=options, bounding_rect=Positions.to_pixel_pos(0,0, x_size, y_rolling, pagenum))
+		options=options, rel_bounding_rect=Positions.to_percent_pos(0,0,1,1,pagenum))
+	contest.abs_bounding_rect = abs_bound
 	return contest
 
 def create_fake_ballot(factory, min_contests=3, max_contests=3)->BallotDefinitions.Ballot:
@@ -47,7 +53,7 @@ def create_fake_contest_image(contest):
 	# See:
 	# 	https://stackoverflow.com/questions/19016144/conversion-between-pillow-image-object-and-numpy-array-changes-dimension
 	# Additionally, PNG's contain data in [0, 255], so we must create an int ditribution to approximate this.
-	shape = (contest.bounding_rect.lower_right.y, contest.bounding_rect.lower_right.x)
+	shape = (contest.abs_bounding_rect.lower_right.y, contest.abs_bounding_rect.lower_right.x)
 	r_data = numpy.random.randint(0,255, shape)   # Test data
 	alpha = numpy.ndarray(shape)
 	alpha.fill(255)

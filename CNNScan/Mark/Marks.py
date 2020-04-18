@@ -92,7 +92,7 @@ class AssignApply:
 
 def apply_marks(contest, marked: CNNScan.Ballot.MarkedBallots.MarkedContest, mark, page, apply=AssignApply()):
 	for which in marked.actual_vote_index:
-		apply(page, contest.options[which].bounding_rect, mark)
+		apply(page, contest.options[which].abs_bounding_rect, mark)
 	return marked
 
 def mark_dataset(ballot:CNNScan.Ballot.BallotDefinitions.Ballot, transforms, count=100):

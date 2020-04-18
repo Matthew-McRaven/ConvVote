@@ -47,16 +47,18 @@ def create_marked_ballot(ballot, mark_database):
 		marked = CNNScan.Ballot.MarkedBallots.MarkedContest(contest.index, None, list(selected))
 
 		# For all the options that were selected for this contest, mark the contest.
-		CNNScan.Mark.apply_marks(contest, marked, mark, marked_pages[contest.bounding_rect.page])
+		CNNScan.Mark.apply_marks(contest, marked, mark, marked_pages[contest.abs_bounding_rect.page])
 
 		contests.append(marked)
-	return CNNScan.Ballot.MarkedBallots.MarkedBallot(ballot, contests, marked_pages)
+	return CNNScan.Ballot.MarkedBallots.MarkedBallot(ballot.ballot_index, contests, marked_pages)
 
 # If lazy_nondeterminism is true, then ballots will only be loaded as they are referenced (a good option for files)
 # If it is false, then all ballots will be loaded into memory before __init__ returns, 
 # which is a good choice for generating ballots deterministically
-class SingleBallotDataSet(Dataset):
-	def __init__(self, ballot_count,  transforms=def_trans, lazy_nondeterminism=True):
+class BallotDataSet(Dataset):
+	def __init__(self, ballot_factory, ballot_count,  transforms=def_trans, lazy_nondeterminism=True):
+		assert isinstance(ballot_factory, CNNScan.Ballot.BallotDefinitions.BallotFactory)
+		self.ballot_factory = ballot_factory
 		self.ballot_count = ballot_count
 		self.marked_ballots = [None] * ballot_count
 		self.transforms = transforms
@@ -68,15 +70,18 @@ class SingleBallotDataSet(Dataset):
 				self.at(i)
 
 	# Querry for a ballot definition given only a ballot id
-	def ballot_definition_from_id(self, ballot_def_id):
-		raise NotImplementedError("")
+	def ballot_definition_from_id(self, ballot_index):
+		assert ballot_index >=0 and ballot_index < len(self.ballot_factory)
+		return self.ballot_factory.ballots[ballot_index]
 	# Return all ballot definitions contained within this class as a list.
 	def all_ballot_definitions(self):
-		raise NotImplementedError("")
+		return self.ballot_factory.ballots
 
 	# Given the index of a Ballot template, return the associated ballot template object
 	def ballot_definition(self, index):
-		raise NotImplementedError
+		ballot_index = self.at(index).ballot_index
+		return self.ballot_definition_from_id(ballot_index)
+		
 
 	# Subclasses must override this in order to support lazy-loading of ballots
 	def load_ballot(self, index):
@@ -102,9 +107,6 @@ class SingleBallotDataSet(Dataset):
 			images.append(contest.tensor)
 		return (index, labels, images)
 
-	def __len__(self):
-		return self.ballot_count
-
 	# Determine the directory where a ballot is stored.
 	def ballot_dir(self, directory, index):
 		return directory + "/ballot%s/" % index
@@ -119,8 +121,7 @@ class SingleBallotDataSet(Dataset):
 			os.makedirs(output_directory)
 		# TODO: use generator expression to create ballots in batches, to reduce memory pressure on host machine
 		with open(output_directory+"/ballot-definition.p", "wb") as file:
-			assert len(self.all_ballot_definitions()) == 1
-			pickle.dump(self.all_ballot_definitions()[0], file)
+			pickle.dump(self.ballot_factory, file)
 		for i in range(len(self.marked_ballots)):
 			marked_ballot = self.at(i)
 
@@ -143,25 +144,10 @@ class SingleBallotDataSet(Dataset):
 			with open(ballot_dir+self.ballot_name(i), "wb") as file:
 				pickle.dump(marked_ballot, file)
 
-class DirectoryDataSet(SingleBallotDataSet):
+class DirectoryDataSet(BallotDataSet):
 	def __init__(self, directory, transforms=def_trans, lazy_nondeterminism=True):
 		self.directory = directory
-		self._ballot_definition = self.load_ballot_definition()
-		super(DirectoryDataSet, self).__init__(self.count_ballots(), transforms, lazy_nondeterminism=lazy_nondeterminism)
-
-	# Querry for a ballot definition given only a ballot id
-	def ballot_definition_from_id(self, ballot_def_id):
-		if self._ballot_definition.ballot_index == ballot_def_id:
-			return self._ballot_definition
-		else:
-			raise KeyError(f"Could not find a ballot with id {ballot_def_id}.")
-	# Return all ballot definitions contained within this class as a list.
-	def all_ballot_definitions(self):
-		return [self._ballot_definition]
-
-	# Given the index of a Ballot template, return the associated ballot template object
-	def ballot_definition(self, index):
-		return self._ballot_definition
+		super(DirectoryDataSet, self).__init__(self.load_ballot_factory(), self.count_ballots(), transforms, lazy_nondeterminism=lazy_nondeterminism)
 
 	# Load a marked ballot with a particular index.
 	def load_ballot(self, index):
@@ -174,30 +160,33 @@ class DirectoryDataSet(SingleBallotDataSet):
 
 		with open(directory+fp, "rb") as file:
 			marked = pickle.load(file)
+			# Make sure that unpickle'ing gave us a usable ballot.
+			assert isinstance(marked, CNNScan.Ballot.MarkedBallots.MarkedBallot)
 
+			# Determine which ballot definition is paired with this marked ballot.
+			ballot_index = marked.ballot_index
+			assert ballot_index >= 0 and ballot_index < len(self.ballot_factory)
+			ballot_definition = self.ballot_factory.ballots[ballot_index]
 			# Ballot pages are not saved as part pickle'd format, so that they may be inspected by humans.
 			marked.pages = []
-			for i, _ in enumerate(self._ballot_definition.pages):
+			for i, _ in enumerate(self.ballot_factory.ballots[marked.ballot_index].pages):
 				marked.pages.append(Image.open(directory+f"b{i}.png"))
 
 			# Crop pages of marked ballots to contain only individual contests.
+			CNNScan.Raster.Raster.crop_contests(ballot_definition, marked)
 
-			CNNScan.Raster.Raster.crop_contests(self._ballot_definition, marked)
-
-			# Make sure that unpickle'ing gave us a usable ballot.
-			assert isinstance(marked, CNNScan.Ballot.MarkedBallots.MarkedBallot)
 			
 			return marked
 
 	# Load and return the object containing the ballot definition.
-	def load_ballot_definition(self):
+	def load_ballot_factory(self):
 		if os.path.exists(self.directory+"/ballot-definition.p"):
 			with open(self.directory+"/ballot-definition.p", "rb") as file:
 				template = pickle.load(file)
-				assert isinstance(template, CNNScan.Ballot.BallotDefinitions.Ballot)
+				assert isinstance(template, CNNScan.Ballot.BallotDefinitions.BallotFactory)
 				return template
 		else:
-			raise ValueError(f"No ballot definition found at {self.directory}")
+			raise ValueError(f"No ballot factory definition found at {self.directory}")
 
 	# Figure out the number of marked ballot files in the current directory.
 	def count_ballots(self):
@@ -210,32 +199,33 @@ class DirectoryDataSet(SingleBallotDataSet):
 		#print(count)
 		return count
 
-class GeneratingDataSet(SingleBallotDataSet):
-	def __init__(self, ballot_def, markdb, ballot_count, transforms=def_trans, lazy_nondeterminism=True):
+	def __len__(self):
+		return self.ballot_count 
+
+
+class GeneratingDataSet(BallotDataSet):
+	def __init__(self, ballot_factory, markdb, ballot_count, transforms=def_trans, lazy_nondeterminism=True):
+		assert isinstance(ballot_factory, CNNScan.Ballot.BallotDefinitions.BallotFactory)
 		self.markdb = markdb
-		self._ballot_definition = ballot_def
-		super(GeneratingDataSet, self).__init__(ballot_count, transforms, lazy_nondeterminism=lazy_nondeterminism)
-
-	# Querry for a ballot definition given only a ballot id
-	def ballot_definition_from_id(self, ballot_def_id):
-		if self._ballot_definition.ballot_index == ballot_def_id:
-			return self._ballot_definition
-		else:
-			raise KeyError(f"Could not find a ballot with id {ballot_def_id}.")
-	# Return all ballot definitions contained within this class as a list.
-	def all_ballot_definitions(self):
-		return [self._ballot_definition]
-
-	# Given the index of a Ballot template, return the associated ballot template object
-	def ballot_definition(self, index):
-		return self._ballot_definition
+		assert len(ballot_factory) == 1
+		super(GeneratingDataSet, self).__init__(ballot_factory, ballot_count, transforms, lazy_nondeterminism=lazy_nondeterminism)
 
 	def load_ballot(self, index):
 		# We shouldn't be asked to create a new ballot when one already exists.
 		assert self.marked_ballots[index] is None
-		ret_val = create_marked_ballot(self._ballot_definition, self.markdb)
-		CNNScan.Raster.Raster.crop_contests(self._ballot_definition, ret_val)
+
+		# Each contiguous group of `count` ballots is is tfrom the same template
+		which = index // self.ballot_count
+		assert which >= 0 and which < len(self.ballot_factory)
+
+		ballot = self.ballot_factory.ballots[which]
+
+		ret_val = create_marked_ballot(ballot, self.markdb)
+		CNNScan.Raster.Raster.crop_contests(ballot, ret_val)
 		return ret_val
+	def __len__(self):
+		return self.ballot_count * len(self.ballot_factory)
+
 
 class MultiGeneratingDataSet(Dataset):
 	def __init__(self, ballot_definition_list, markdb, count_list, transforms=def_trans, lazy_nondeterminism=True):

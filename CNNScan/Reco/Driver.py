@@ -12,25 +12,18 @@ def load_ballot_files(config):
 	pass
 
 # Create training data using fake ballots.
-def get_train(config, ballot, module):
-	# TODO: Make normalization a parameter instead of hardcoded.
-	transforms=torchvision.transforms.Compose([torchvision.transforms.Lambda(lambda x: np.average(x, axis=-1, weights=[1,1,1,0],returned=True)[0]),
-					                           torchvision.transforms.ToTensor(),
-											   torchvision.transforms.Lambda(lambda x: x.float()),
-											   torchvision.transforms.Normalize((1,),(127.5,))
-											   #torchvision.transforms.Lambda(lambda x: (1.0 - (x / 127.5)).float())
-											   ])
+def get_train(config, ballot_factory):
 	mark_db = CNNScan.Mark.MarkDatabase()
 	mark_db.insert_mark(CNNScan.Mark.BoxMark()) 
-	data = CNNScan.Reco.Load.MultiGeneratingDataSet((ballot, ballot), mark_db, (50,50), transforms)
+	data = CNNScan.Reco.Load.GeneratingDataSet(ballot_factory, mark_db, 50)
 	#data = CNNScan.Reco.Load.GeneratingDataSet(ballot, mark_db, 100, transforms)
 	#print(data.at(0).marked_contest[0].image)
 	load = torch.utils.data.DataLoader(data, batch_size=config['batch_size'], shuffle=True, )
 	return load
 
 # Create testing data.
-def get_test(config, ballot, module):
-	return get_train(config, ballot, module)
+def get_test(config, ballot):
+	return get_train(config, ballot)
 
 
 # Train a neural network to recognize the results of a single contest for a single election
@@ -42,10 +35,10 @@ def contest_entry_point(config, module=CNNScan.Samples.Oregon):
 	# TODO: scale BallotRecognizer based on election output size
 	model = ImgRec.BallotRecognizer(config, ballot)
 	print(model)
-	model = ImgRec.train_single_ballot(model, config, ballot, get_train(config, ballot, module), get_test(config, ballot, module))
+	model = ImgRec.train_single_ballot(model, config, ballot, get_train(config, ballot_factory), get_test(config, ballot_factory))
 
 	# Display a single sample ballot to visualize if training was succesful.
-	render_data = get_test(config, ballot, module)
+	render_data = get_test(config, ballot_factory)
 	#print(render_data)
 	CNNScan.Reco.ImgRec.evaluate_ballots(model, ballot, render_data, config, add_to_ballots=True)
 
