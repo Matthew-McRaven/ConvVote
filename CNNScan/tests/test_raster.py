@@ -32,7 +32,6 @@ class TestConvertPDF2Image(unittest.TestCase):
 
 	# Check that data can be loaded from the disk
 	def test_raster(self):
-
 		oregon = CNNScan.Samples.Oregon
 		ballot_factory = CNNScan.Ballot.BallotDefinitions.BallotFactory()
 		ballot = ballot_factory.Ballot(contests=oregon.contests, ballot_file=oregon.ballot_file)

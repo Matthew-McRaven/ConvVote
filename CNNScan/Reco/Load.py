@@ -52,66 +52,98 @@ def create_marked_ballot(ballot, mark_database):
 		contests.append(marked)
 	return CNNScan.Ballot.MarkedBallots.MarkedBallot(ballot.ballot_index, contests, marked_pages)
 
-# If lazy_nondeterminism is true, then ballots will only be loaded as they are referenced (a good option for files)
-# If it is false, then all ballots will be loaded into memory before __init__ returns, 
-# which is a good choice for generating ballots deterministically
-class BallotDataSet(Dataset):
-	def __init__(self, ballot_factory, ballot_count,  transforms=def_trans, lazy_nondeterminism=True):
-		assert isinstance(ballot_factory, CNNScan.Ballot.BallotDefinitions.BallotFactory)
+# Describe a dataset containing multiple ballot definitions that is lazily loaded/generated.
+class MixedBallotDataSet(Dataset):
+	def __init__(self, ballot_factory, ballot_counts, transforms=def_trans, lazy_nondeterminism=True):
 		self.ballot_factory = ballot_factory
-		self.ballot_count = ballot_count
-		self.marked_ballots = [None] * ballot_count
+		self.ballot_count = ballot_counts
+		self.marked_ballots = [[None] * ballot_count for ballot_count in ballot_counts]
 		self.transforms = transforms
 		self.lazy = lazy_nondeterminism
+		self.fixed_ballot = None
+
+		# Determine
+		self.ballot_offsets = []
+		start = 0
+		for count in ballot_counts:
+			self.ballot_offsets.append(start)
+			start += count
 
 		# Force all ballots to be loaded immediately.
 		if not lazy_nondeterminism:
-			for i in range(self.ballot_count):
-				self.at(i)
+			for ballot_type in range(len(self.ballot_factory.ballots)):
+				self.freeze_ballot_definiton_index(ballot_type)
+				for i in range(self.__len__()):
+					self.at(i)
+		
+	# Make the dataset behave as if it only contained ballots for "which"
+	# Len, [] operations will only factor in selected ballot.
+	def freeze_ballot_definiton_index(self, which):
+		assert which >= 0 and which<len(self.ballot_factory)
+		self.fixed_ballot = which
 
 	# Querry for a ballot definition given only a ballot id
 	def ballot_definition_from_id(self, ballot_index):
 		assert ballot_index >=0 and ballot_index < len(self.ballot_factory)
 		return self.ballot_factory.ballots[ballot_index]
+
 	# Return all ballot definitions contained within this class as a list.
 	def all_ballot_definitions(self):
 		return self.ballot_factory.ballots
 
-	# Given the index of a Ballot template, return the associated ballot template object
+	# Given the index of a Ballot template, return the associated ballot definition object
 	def ballot_definition(self, index):
-		ballot_index = self.at(index).ballot_index
+		ballot_index = self.at(index, self.fixed_ballot).ballot_index
 		return self.ballot_definition_from_id(ballot_index)
-		
-
-	# Subclasses must override this in order to support lazy-loading of ballots
-	def load_ballot(self, index):
-		raise NotImplementedError
 
 	# Fetch the item at index, which may not yet be loaded into memory.
-	def at(self, index):
-		if self.marked_ballots[index] is None:
-			self.marked_ballots[index] = self.load_ballot(index)
+	def at(self, index, ballot_number=None):
+		# If no "active" ballot was specified,
+		# find which set of ballots the index is
+		# contained in, and update index, ballot_number
+		if ballot_number is None:
+			ballot_number = 0
+			best_offset = 0
+			for offset in self.ballot_offsets:
+				if offset > index:
+					break
+				ballot_number += 1
+				best_offset = offset
+			ballot_number -= 1
+			index -= best_offset
+
+		# Load ballot if it has not yet been paged in.
+		if self.marked_ballots[ballot_number][index] is None:
+			self.marked_ballots[ballot_number][index] = self.load_ballot(index, ballot_number)
 			# Tensors were purged on save, so they must be re-constructed.
-			for contest in self.marked_ballots[index].marked_contest:
+			for contest in self.marked_ballots[ballot_number][index].marked_contest:
 				contest.tensor = self.transforms(contest.image)
-		return self.marked_ballots[index]
+
+		return self.marked_ballots[ballot_number][index]
+
+	# Return the length of the active ballot, or return the total number of cached ballots.
+	def __len__(self):
+		if self.fixed_ballot is None:
+			return np.sum(self.ballot_count)
+		else:
+			return self.ballot_count[self.fixed_ballot]
 
 	# Return tensors usable by DataLoader interface.
 	def __getitem__(self, index):
-		val = self.at(index)
+		val = self.at(index, self.fixed_ballot)
 		labels, images =[],[]
 		for i, contest in enumerate(val.marked_contest):
 			num_candidates = len(self.ballot_definition(index).contests[i].options)
 			# TODO: Create additional encodings (such a multi-class classification or ranked-choice) that may be choosen from here.
 			labels.append(torch.tensor(CNNScan.utils.labels_to_vec(contest.actual_vote_index, num_candidates), dtype=torch.float32))
 			images.append(contest.tensor)
-		return (index, labels, images)
+		return (index, val.ballot_index, labels, images)
 
-	# Determine the directory where a ballot is stored.
-	def ballot_dir(self, directory, index):
-		return directory + "/ballot%s/" % index
+	# Determine where a marked ballot is stored.
+	def ballot_dir(self, directory, index, ballot_number):
+		return directory + "/def%s"%ballot_number+"/ballot%s/" % index
 
-	# Determine the name for a contest's image
+	# Determine the name for an individual marked ballot definition.
 	def ballot_name(self, index):
 		return f"ballot{index}.p"
 
@@ -122,38 +154,47 @@ class BallotDataSet(Dataset):
 		# TODO: use generator expression to create ballots in batches, to reduce memory pressure on host machine
 		with open(output_directory+"/ballot-definition.p", "wb") as file:
 			pickle.dump(self.ballot_factory, file)
-		for i in range(len(self.marked_ballots)):
-			marked_ballot = self.at(i)
 
-			# Require that ballot directories
-			ballot_dir = self.ballot_dir(output_directory, i)
-			if not os.path.exists(ballot_dir):
-				os.mkdir(ballot_dir)
+		# Save all marked ballots for each ballot definition.
+		for ballot_number in range(len(self.marked_ballots)):
+			# Override the active ballot definition, so len(self) will work correctly.
+			self.freeze_ballot_definiton_index(ballot_number)
+			for i in range(len(self)):
+				# Must explicitly pass in ballot number, or only the first ballot definition will be touched.
+				marked_ballot = self.at(i, ballot_number)
 
-			# Serialize all contests to PNG's so they may be inspected.
-			# Null out reference to image, so it does not get pickled.
-			for j, page in enumerate(marked_ballot.pages):
-				page.save(ballot_dir+f"b{j}.png")
-			marked_ballot.pages = None
+				# Make ballot directories if they do not exist.
+				ballot_dir = self.ballot_dir(output_directory, i, ballot_number)
+				if not os.path.exists(ballot_dir):
+					os.makedirs(ballot_dir)
 
-			# Remove contest image data; it can be cropped back from the marked pages
-			for j, contest in enumerate(marked_ballot.marked_contest):
-				contest.clear_data()
-				
-			# Serialize ballot (without images!) to object in directory structure
-			with open(ballot_dir+self.ballot_name(i), "wb") as file:
-				pickle.dump(marked_ballot, file)
+				# Serialize all contests to PNG's so they may be inspected.
+				# Null out reference to image, so it does not get pickled.
+				for j, page in enumerate(marked_ballot.pages):
+					page.save(ballot_dir+f"b{j}.png")
+				marked_ballot.pages = None
 
-class DirectoryDataSet(BallotDataSet):
+				# Remove contest image data; it can be cropped back from the marked pages
+				for j, contest in enumerate(marked_ballot.marked_contest):
+					contest.clear_data()
+					
+				# Serialize ballot (without images!) to object in directory structure
+				with open(ballot_dir+self.ballot_name(i), "wb") as file:
+					pickle.dump(marked_ballot, file)
+	
+# If lazy_nondeterminism is true, then ballots will only be loaded as they are referenced (a good option for files)
+# If it is false, then all ballots will be loaded into memory before __init__ returns, 
+# which is a good choice for generating ballots deterministically
+class DirectoryDataSet(MixedBallotDataSet):
 	def __init__(self, directory, transforms=def_trans, lazy_nondeterminism=True):
 		self.directory = directory
 		super(DirectoryDataSet, self).__init__(self.load_ballot_factory(), self.count_ballots(), transforms, lazy_nondeterminism=lazy_nondeterminism)
 
 	# Load a marked ballot with a particular index.
-	def load_ballot(self, index):
+	def load_ballot(self, index, ballot_number):
 		# We shouldn't be asked to create a new ballot when one already exists
-		assert self.marked_ballots[index] is None
-		directory = self.ballot_dir(self.directory, index)
+		assert self.marked_ballots[ballot_number][index] is None
+		directory = self.ballot_dir(self.directory, index, ballot_number)
 		assert os.path.exists(directory)
 		fp = self.ballot_name(index)
 		assert os.path.isfile(directory+fp)
@@ -190,93 +231,43 @@ class DirectoryDataSet(BallotDataSet):
 
 	# Figure out the number of marked ballot files in the current directory.
 	def count_ballots(self):
-		dirs = os.listdir(path=self.directory)
-		count = 0
-		program = re.compile("ballot[0-9]+")
-		for x in dirs:
-			if program.match(x):
-				count += 1
-		#print(count)
-		return count
 
-	def __len__(self):
-		return self.ballot_count 
+		outer = self.directory
+		count_list = []
+		for inner in os.listdir(path=outer):
+			inner = outer+"/"+inner
+			#print(inner)
+			program = re.compile("def[0-9]+")
+			if not os.path.isdir(inner):
+				print(f"{inner} is not a dir.")
+				continue
+
+			ballot_dirs = os.listdir(path=inner)
+			count = 0
+			program = re.compile("ballot[0-9]+")
+			for x in ballot_dirs:
+				if program.match(x):
+					count += 1
+			count_list.append(count)
+		print(count_list)
+		return count_list
 
 
-class GeneratingDataSet(BallotDataSet):
+class GeneratingDataSet(MixedBallotDataSet):
 	def __init__(self, ballot_factory, markdb, ballot_count, transforms=def_trans, lazy_nondeterminism=True):
 		assert isinstance(ballot_factory, CNNScan.Ballot.BallotDefinitions.BallotFactory)
 		self.markdb = markdb
-		assert len(ballot_factory) == 1
-		super(GeneratingDataSet, self).__init__(ballot_factory, ballot_count, transforms, lazy_nondeterminism=lazy_nondeterminism)
+		super(GeneratingDataSet, self).__init__(ballot_factory, [ballot_count]*len(ballot_factory), transforms, lazy_nondeterminism=lazy_nondeterminism)
 
-	def load_ballot(self, index):
-		# We shouldn't be asked to create a new ballot when one already exists.
-		assert self.marked_ballots[index] is None
-
+	def load_ballot(self, index, ballot_number):
 		# Each contiguous group of `count` ballots is is tfrom the same template
-		which = index // self.ballot_count
-		assert which >= 0 and which < len(self.ballot_factory)
+		assert ballot_number >= 0 and ballot_number < len(self.ballot_factory)
 
-		ballot = self.ballot_factory.ballots[which]
+		# We shouldn't be asked to create a new ballot when one already exists.
+		assert self.marked_ballots[ballot_number][index] is None
+
+		ballot = self.ballot_factory.ballots[ballot_number]
 
 		ret_val = create_marked_ballot(ballot, self.markdb)
 		CNNScan.Raster.Raster.crop_contests(ballot, ret_val)
 		return ret_val
-	def __len__(self):
-		return self.ballot_count * len(self.ballot_factory)
-
-
-class MultiGeneratingDataSet(Dataset):
-	def __init__(self, ballot_definition_list, markdb, count_list, transforms=def_trans, lazy_nondeterminism=True):
-		self.markdb = markdb
-		assert len(ballot_definition_list) == len(count_list)
-		self.datasets = []
-		self.ballot_count = 0
-		self._ballot_definitions = ballot_definition_list
-		for definition, count in zip(ballot_definition_list, count_list):
-			self.ballot_count += count
-			self.datasets.append(GeneratingDataSet(definition, self.markdb, count, transforms, lazy_nondeterminism=lazy_nondeterminism))
-
-	# Querry for a ballot definition given only a ballot id
-	def ballot_definition_from_id(self, ballot_def_id):
-		for ballot in self._ballot_definition:
-			if ballot.ballot_index == ballot_def_id:
-				return ballot
-		raise KeyError(f"Could not find a ballot with id {ballot_def_id}.")
-
-	# Return all ballot definitions contained within this class as a list.
-	def all_ballot_definitions(self):
-		return self._ballot_definition
-
-	# Given the index of a Ballot template, return the associated ballot template object
-	def ballot_definition(self, index):
-		count = 0
-		for dataset in self.datasets:
-			if index - count < len(dataset):
-				return dataset.ballot_definition(index-count)
-			else:
-				count += len(dataset)
-	
-	# Fetch the item at index, which may not yet be loaded into memory.
-	def at(self, index):
-		count = 0
-		for dataset in self.datasets:
-			if index - count < len(dataset):
-				return dataset.at(index-count)
-			else:
-				count += len(dataset)
-
-	# Return tensors usable by DataLoader interface.
-	def __getitem__(self, index):
-		val = self.at(index)
-		labels, images =[],[]
-		for i, contest in enumerate(val.marked_contest):
-			num_candidates = len(self.ballot_definition(index).contests[i].options)
-			# TODO: Create additional encodings (such a multi-class classification or ranked-choice) that may be choosen from here.
-			labels.append(torch.tensor(CNNScan.utils.labels_to_vec(contest.actual_vote_index, num_candidates), dtype=torch.float32))
-			images.append(contest.tensor)
-		return (index, labels, images)
-
-	def __len__(self):
-		return self.ballot_count

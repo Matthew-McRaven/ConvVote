@@ -43,7 +43,7 @@ def generate_default_settings():
 
 	ret['recog_full_nlo']		= "ReLu"
 	ret['recog_full_layers']	= [100]
-	#ret['recog_full_layers']	= [100, 100, 100]
+	#ret['recog_full_layers']	= [400, 200, 100]
 
 	# How many values should come out of the ImageRecognitionCore class?
 

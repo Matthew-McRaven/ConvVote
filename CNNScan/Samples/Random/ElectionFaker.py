@@ -36,7 +36,7 @@ def create_fake_contest(pagenum, contest_index=0, min_candidate=1, max_candidate
 	contest.abs_bounding_rect = abs_bound
 	return contest
 
-def create_fake_ballot(factory, min_contests=3, max_contests=3)->BallotDefinitions.Ballot:
+def create_fake_ballot(factory, min_contests=2, max_contests=8)->BallotDefinitions.Ballot:
 	contests = random.randint(min_contests, max_contests)
 	contests_list = []
 	for i in range(0, contests):
