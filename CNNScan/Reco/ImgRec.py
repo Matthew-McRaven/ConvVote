@@ -313,7 +313,7 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 								ballot = loader.dataset.at(location, ballot_number=ballot_type)
 								if contest_idx >= len(ballot.marked_contest):
 									#print(f"We have {len(ballot.marked_contest)} contests, but asked for {contest_idx}")
-								ballot.marked_contest[contest_idx].computed_vote_index.append(inner_index)
+									ballot.marked_contest[contest_idx].computed_vote_index.append(inner_index)
 
 				# Compute the number of options determined correctly
 				if count_options:
