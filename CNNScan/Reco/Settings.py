@@ -35,6 +35,7 @@ def generate_default_settings():
 
 	# Determine how the inner CNN / FC layers are built
 	ret['recog_conv_nlo']		= "ReLu"
+	ret['recog_copies']			= 5
 	ret['recog_conv_layers'] 	= [
 		# Make sure the kernel size is SMALLER than the feature being recognized.
 		conv_def(4, 16, 1, 0, 1, False),

@@ -217,8 +217,10 @@ class BallotRecognizer(nn.Module):
 		super(BallotRecognizer, self).__init__()
 		assert isinstance(ballot_factory, BallotDefinitions.BallotFactory)
 		rescaler = ImageRescaler(config, ballot_factory)
-		recognizer = ImageRecognitionCore(config, rescaler.output_dimensions())
-		labeler = OutputLabeler(config, recognizer.output_size(), ballot_factory)
+		recognizer = nn.ModuleList([ImageRecognitionCore(config, rescaler.output_dimensions()) for i in range(config['recog_copies'])])
+		labeler = OutputLabeler(config, recognizer[0].output_size(), ballot_factory)
+		self.run_all = True
+		self.recognizer_copies = config['recog_copies']
 
 		# Use an ordered dict so printing out the model prints in the correct order.
 		self.module_list = nn.ModuleDict(collections.OrderedDict([
@@ -226,19 +228,34 @@ class BallotRecognizer(nn.Module):
 			('recognizer', recognizer),
 			('labeler', labeler)])
 			)
+		self.recognizer_list = len(ballot_factory)*[None]
+		for ballot in range(len(ballot_factory)):
+			self.recognizer_list[ballot] = [random.randint(0, self.recognizer_copies - 1) for i in range(len(ballot_factory.ballots[ballot].contests))]
+		print(self.recognizer_list)
 
 		
 	def forward(self, ballot_number, contest_number, inputs):
 		batches = len(inputs)
 		outputs = self.module_list['rescaler'](ballot_number, contest_number, batches, inputs)
-		outputs = self.module_list['recognizer'](ballot_number, contest_number, batches, outputs)
-		outputs = self.module_list['labeler'](ballot_number, contest_number, batches, outputs)
-		outputs = outputs.view(batches, -1)
+		if not self.run_all:
+			outputs = self.module_list['recognizer'][self.recognizer_list[ballot_number][contest_number]](ballot_number, contest_number, batches, outputs)
+			outputs = self.module_list['labeler'](ballot_number, contest_number, batches, outputs)
+			outputs = outputs.view(1, batches, -1)
+		else:
+			stack_output = []
+			for way in self.module_list.recognizer:
+				inter_output = way(ballot_number, contest_number, batches, outputs)
+				inter_output = self.module_list['labeler'](ballot_number, contest_number, batches, inter_output)
+				stack_output.append(inter_output)
+			#print(f"Pre stacked{stack_output}")
+			stack_output = torch.stack(stack_output)
+			#print(f"Post-stacked {stack_output}")
+			outputs = stack_output.view(self.recognizer_copies, batches, -1)
 		return outputs
+
+		def update_CNN_table(self, ballot_number, contest_number, which_CNN):
+			self.recognizer_list[ballot_number][contest_number] = which_CNN
 	
-	def resize_for_election(self, ballot: BallotDefinitions.Ballot,):
-		self.modules['rescaler'].resize(ballot)
-		self.modules['labeler'].resize(ballot)
 
 def train_single_contest(model, config, train_data, test_data, number_candidates):
 	raise NotImplementedError()
@@ -278,7 +295,7 @@ def train_election(model, config, ballot_factory, train_loader, test_loader):
 # Account for varying number of ballots, as well annotating the data in the data loader with recorded votes.
 # Works for both training and development. Will probably not work with real data, since no labels/loss will be available.
 # TODO: Handle multiple "middle layer" CNN's.
-def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, optimizer=None, train=True, annotate_ballots=True, count_options=False):
+def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, optimizer=None, train=True, annotate_ballots=True, count_options=False, update_cnn_table=False):
 	batch_images, batch_loss, batch_correct = 0,0,0
 	ballot_types = [i for i in range(len(ballot_factory))]
 	random.shuffle(ballot_types)
@@ -290,14 +307,49 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 				tensor_labels = utils.cuda(labels[contest_idx], config)
 
 				output = model(ballot_type, contest_idx, tensor_images)
+				#print(output)
 				#print(f"Dis is {ballot_type}{contest_idx}")
 				#print(f"Ve hav ze labils {len(labels[contest_idx])} {len(output)}")
-				loss = criterion(output, tensor_labels)
+				losses = []
+				loss = float("inf")
+				best_output_index = 0
+				#print(output)
+				for outer, one_output in enumerate(output):
+					#print("Batch element is", one_output)
+					inner_loss = []
+					for inner, row in enumerate(one_output):
+						inner_loss.append(criterion(row, tensor_labels[inner]))
+					
+					numeric_loss = [loss.data.item() for loss in inner_loss]
+					#print("Numeric is ", numeric_loss)
+					# If all NN's returned the right result, then we should weight all losses equally (i.e. not at all)
+					if max(numeric_loss) == 0 or (max(numeric_loss) == min(numeric_loss)):
+						scaled_coef = [1/len(numeric_loss) for co in numeric_loss]
+						#print("1/n")
+					# Otherwise weight the losses towards those "close" to the best.
+					else:
+						#print(numeric_loss, max(numeric_loss), min(numeric_loss))
+						coef = [(max(numeric_loss) - i )/(max(numeric_loss)-min(numeric_loss)) for i in numeric_loss]
+						#print("Coefs are ", coef)
+						scaled_coef = [co/sum(coef) for co in coef]
+						#print("Scaled coefs are ", scaled_coef)
+					
+					loss = sum([scaled_coef[i]*item for i,item in enumerate(inner_loss)])
+					#print("Loss is ", loss)
+					losses.append(loss)
+
+				#print(losses)
 
 				# Perform optimization
 				if train:
-					loss.backward()
+					real_loss = sum(losses)
+					real_loss.backward()
 					optimizer.step()
+
+				if update_cnn_table:
+					pass
+
+				output = output[best_output_index]
 
 				# Possibly annotate ballots with the list of recorded votes.
 				if annotate_ballots:
@@ -352,7 +404,7 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 							#batch_images += len(tensor_images)
 
 				# Accumulate losses
-				batch_loss += loss.data.item()
+				batch_loss += loss
 
 				# Clean up memory, since CUDA seems to leak memory when running for a long time.
 				del tensor_images
