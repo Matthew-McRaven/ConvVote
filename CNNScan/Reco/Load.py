@@ -14,7 +14,7 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 
 import CNNScan.Ballot.MarkedBallots
-def_trans =  torchvision.transforms.Compose([torchvision.transforms.Lambda(lambda x: np.average(x, axis=-1, weights=[1,1,1,0],returned=True)[0]),
+def_trans =  torchvision.transforms.Compose([#torchvision.transforms.Lambda(lambda x: np.average(x, axis=-1, weights=[1,1,1,0],returned=True)[0]),
 					                         torchvision.transforms.ToTensor(),
 											 torchvision.transforms.Lambda(lambda x: x.float()),
 											 torchvision.transforms.Normalize((1,),(127.5,))

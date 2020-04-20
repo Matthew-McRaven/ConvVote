@@ -51,11 +51,22 @@ class Ballot:
 class BallotFactory:
 	def __init__(self):
 		self.ballots = []
+		self._contests = 0
+		self._options_len = 0
+
 
 	def Ballot(self, *args, **kwargs):
 		new_ballot = Ballot(*args, ballot_index=len(self.ballots), **kwargs)
 		self.ballots.append(new_ballot)
+		self._contests = sum([len(ballot.contests) for ballot in self.ballots])
+		self._options_len = max([max([len(contest.options) for contest in ballot.contests]) for ballot in self.ballots])
 		return new_ballot
 	
+	def num_contests(self):
+		return self._contests 
+	
+	def max_options(self):
+		return self._options_len
+
 	def __len__(self):
 		return len(self.ballots)

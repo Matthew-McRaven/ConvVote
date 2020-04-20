@@ -17,7 +17,7 @@ def generate_default_settings():
 	ret['train_log_int']	= 1000
 
 	# See Settings::get_criterion() for available criterion.
-	ret['criterion'] 		= 'MSE-SUM'
+	ret['criterion'] 		= 'BCElog-sum'
 	# See Settings::get_criterion() for available criterion.
 	ret['optimizer'] 		= 'adam'
 
@@ -26,23 +26,25 @@ def generate_default_settings():
 	ret['l2_lambda'] 		= 0.01
 	ret['dropout'] 			= 0.1
 	ret['epochs'] 			= 10
-	ret['batch_size']		= 10
+	ret['batch_size']		= 7
 
 	# Determine how to pad / cut the images
 	ret['target_resolution']	= (128, 128)
 	# Number of channels coming out of the rescaler.
-	ret['target_channels']		= 1
+	ret['target_channels']		= 4
 
 	# Determine how the inner CNN / FC layers are built
 	ret['recog_conv_nlo']		= "ReLu"
 	ret['recog_copies']			= 5
 	ret['recog_conv_layers'] 	= [
 		# Make sure the kernel size is SMALLER than the feature being recognized.
-		conv_def(4, 16, 1, 0, 1, False),
+		conv_def(4, 16, 1, 0, 1, True),
+		#conv_def(6, 8, 2, 1, 2, False),
 		pool_def(4, 1, 0, 1, True, 'avg')
 		]
 
 	ret['recog_full_nlo']		= "ReLu"
+	ret['recog_embed']			= 5
 	ret['recog_full_layers']	= [100]
 	#ret['recog_full_layers']	= [400, 200, 100]
 
@@ -86,6 +88,10 @@ def get_criterion(config):
 		return nn.MSELoss(reduction='sum')
 	elif key == 'cel-sum':
 		return nn.CrossEntropyLoss(reduction='sum')
+	elif key == 'bcelog-sum':
+		return nn.BCEWithLogitsLoss(reduction='sum')
+	elif key == 'bce-sum':
+		return nn.BCELoss(reduction='sum')
 	else:
 		raise NotImplementedError(f"{key} is not an implemented loss criterion function.")
 

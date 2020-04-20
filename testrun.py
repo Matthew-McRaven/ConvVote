@@ -13,11 +13,11 @@ import CNNScan.Samples
 # Choose to use real Oregon data (on which the network performs poorly)
 # Or choose randomly generate data, on which the network performs decently.
 config = Settings.generate_default_settings()
-config['epochs'] = 10
+config['epochs'] = 50
 markdb = CNNScan.Mark.MarkDatabase()
-markdb.insert_mark(CNNScan.Mark.BoxMark())
+#markdb.insert_mark(CNNScan.Mark.BoxMark())
 #markdb.insert_mark(CNNScan.Mark.InvertMark())
-#markdb.insert_mark(CNNScan.Mark.XMark())
+markdb.insert_mark(CNNScan.Mark.XMark())
 
 
 # Create fake data that can be used 
@@ -34,5 +34,5 @@ data = CNNScan.Reco.Load.GeneratingDataSet(ballot_factory, markdb, 10)
 load = torch.utils.data.DataLoader(data, batch_size=config['batch_size'], shuffle=True)
 
 # Attempts to train model.
-model = CNNScan.Reco.ImgRec.BallotRecognizer(config, ballot_factory)
-model = CNNScan.Reco.ImgRec.train_election(model, config, ballot_factory, load, load)
+model = CNNScan.Reco.OneNet.BallotRecognizer(config, ballot_factory)
+model = CNNScan.Reco.OneNet.train_election(model, config, ballot_factory, load, load)

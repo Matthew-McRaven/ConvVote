@@ -121,15 +121,23 @@ class ImageRescaler(nn.Module):
 		self.resize(ballot_factory)
 
 	def forward(self, ballot_number, contest_number, batches, images):
-
-		index = self.translate[ballot_number][contest_number]
-		# TODO: Perform pooling, interpolation, and nothing depending on the size ratios of in to out resolution.
-		#print(images.shape)
-		out = self.pad[index](images)
-		#print(out.shape)
-		out = self.pool[index](out)
-		#print(out.shape)
-		return out
+		out_tens =[]
+		#print(ballot_number, contest_number, images)
+		assert len(ballot_number) == len(contest_number)
+		assert len(contest_number) == len(images)
+		assert len(images) == batches
+		for index in range(len(ballot_number)):
+			ballot = ballot_number[index]
+			contest = contest_number[index]
+			lookup_index = self.translate[ballot][contest]
+			# TODO: Perform pooling, interpolation, and nothing depending on the size ratios of in to out resolution.
+			#print(images.shape)
+			out = self.pad[lookup_index](images[index])
+			#print(out.shape)
+			out = self.pool[lookup_index](out)
+			out_tens.append(out)
+			#print(out.shape)
+		return torch.cat(out_tens)
 
 	def output_size(self):
 		return self.x_out_res * self.y_out_res
@@ -178,35 +186,46 @@ class OutputLabeler(nn.Module):
 		super(OutputLabeler, self).__init__()
 		self.input_dimensions = input_dimensions
 		self.output_dimension = []
-		self.output_layers = nn.ModuleList()
-		self.translate = []
-		self.resize(ballot_factory)
+		self.output_layers = nn.Linear(self.input_dimensions+config['recog_embed'], ballot_factory.max_options())
+		self.tx_table = nn.Embedding(ballot_factory.num_contests(), config['recog_embed'])
 		self.sigmoid = nn.Sigmoid()
-	
-	def forward(self, ballot_number, contest_number, batches, inputs):
-		index = self.translate[ballot_number][contest_number]
-		inputs = inputs.view(batches, -1)
-		output = self.output_layers[index](inputs)
-		# Map outputs into range [0,1], with 1 being a vote for an option
-		# and 0 being the absence of a vote.
-		output = self.sigmoid(output)
-		return output
 
-	def resize(self, ballot_factory):
-		assert isinstance(ballot_factory, BallotDefinitions.BallotFactory)
-		self.translate = len(ballot_factory.ballots) * [None]
+		start = 0
+		self.index_of = len(ballot_factory.ballots) * [None]
 		for outer, ballot in enumerate(ballot_factory.ballots):
-			start = len(self.output_layers)
-			self.translate[outer] = [i+start for i in range(len(ballot.contests))]
-			for contest in ballot.contests:
-				this_dim = len(contest.options)
-				self.output_dimension.append(this_dim)
-				self.output_layers.append(nn.Linear(self.input_dimensions, this_dim))
+			self.index_of[outer] = [i+start for i in range(len(ballot.contests))]
+			start += len(self.index_of[outer])
+		print(self.index_of)
 
 		# Randomize initial parameters
 		for p in self.parameters():
 			if p.dim() > 1:
 				nn.init.kaiming_normal_(p)
+	
+	def forward(self, ballot_number, contest_number, batches, inputs):
+		#print(inputs)
+		inputs = inputs.view(batches, -1)
+		#print(ballot_number, contest_number)
+		#print(torch.stack([ballot_number, contest_number]))
+		wanted_embeds = []
+		for index in range(len(ballot_number)):
+			ballot = ballot_number[index]
+			contest = contest_number[index]
+			index = self.index_of[ballot][contest]
+			wanted_embeds.append(index)
+		tens = torch.tensor(wanted_embeds, dtype=torch.long)
+		#print(tens)
+		emb = self.tx_table(tens)
+		#print(emb)
+		#print(emb.shape, inputs.shape)
+		inputs = torch.cat((emb, inputs), 1)
+		#print(inputs.shape)
+		output = self.output_layers(inputs)
+		# Map outputs into range [0,1], with 1 being a vote for an option
+		# and 0 being the absence of a vote.
+		#print(output)
+		#output = self.sigmoid(output)
+		return output
 
 # A container that holds the three portions of our Neural Network.
 # The first segment rescales the images to be a standard size (which is input_image_x,input_image_y).
@@ -217,11 +236,9 @@ class BallotRecognizer(nn.Module):
 		super(BallotRecognizer, self).__init__()
 		assert isinstance(ballot_factory, BallotDefinitions.BallotFactory)
 		rescaler = ImageRescaler(config, ballot_factory)
-		recognizer = nn.ModuleList([ImageRecognitionCore(config, rescaler.output_dimensions()) for i in range(config['recog_copies'])])
-		labeler = OutputLabeler(config, recognizer[0].output_size(), ballot_factory)
-		self.run_all = True
-		self.recognizer_copies = config['recog_copies']
-		
+		recognizer = ImageRecognitionCore(config, rescaler.output_dimensions())
+		labeler = OutputLabeler(config, recognizer.output_size(), ballot_factory)
+		self.sigmoid = nn.Sigmoid()
 
 		# Use an ordered dict so printing out the model prints in the correct order.
 		self.module_list = nn.ModuleDict(collections.OrderedDict([
@@ -229,33 +246,15 @@ class BallotRecognizer(nn.Module):
 			('recognizer', recognizer),
 			('labeler', labeler)])
 			)
-		self.recognizer_list = len(ballot_factory)*[None]
-		for ballot in range(len(ballot_factory)):
-			self.recognizer_list[ballot] = [random.randint(0, self.recognizer_copies - 1) for i in range(len(ballot_factory.ballots[ballot].contests))]
-		print(self.recognizer_list)
 
 		
 	def forward(self, ballot_number, contest_number, inputs):
 		batches = len(inputs)
 		outputs = self.module_list['rescaler'](ballot_number, contest_number, batches, inputs)
-		if not self.run_all:
-			outputs = self.module_list['recognizer'][self.recognizer_list[ballot_number][contest_number]](ballot_number, contest_number, batches, outputs)
-			outputs = self.module_list['labeler'](ballot_number, contest_number, batches, outputs)
-			outputs = outputs.view(1, batches, -1)
-		else:
-			stack_output = []
-			for way in self.module_list.recognizer:
-				inter_output = way(ballot_number, contest_number, batches, outputs)
-				inter_output = self.module_list['labeler'](ballot_number, contest_number, batches, inter_output)
-				stack_output.append(inter_output)
-			#print(f"Pre stacked{stack_output}")
-			stack_output = torch.stack(stack_output)
-			#print(f"Post-stacked {stack_output}")
-			outputs = stack_output.view(self.recognizer_copies, batches, -1)
+		outputs = self.module_list['recognizer'](ballot_number, contest_number, batches, outputs)
+		outputs = self.module_list['labeler'](ballot_number, contest_number, batches, outputs)
+		outputs = outputs.view(batches, -1)
 		return outputs
-
-		def update_CNN_table(self, ballot_number, contest_number, which_CNN):
-			self.recognizer_list[ballot_number][contest_number] = which_CNN
 	
 
 def train_single_contest(model, config, train_data, test_data, number_candidates):
@@ -302,58 +301,38 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 	random.shuffle(ballot_types)
 	for ballot_type in ballot_types:
 		loader.dataset.freeze_ballot_definiton_index(ballot_type)
-		for dataset_index, ballot_number, labels, images in loader:
+		for dataset_index, ballot_numbers, labels, images in loader:
+			ballot_numbers = ballot_numbers.type(torch.LongTensor)
 			for contest_idx in range(len(ballot_factory.ballots[ballot_type].contests)):
+			#for i in range(1):
+				#contest_idx = 0
 				tensor_images = utils.cuda(images[contest_idx], config)
 				tensor_labels = utils.cuda(labels[contest_idx], config)
 				tensor_labels = tensor_labels.type(torch.FloatTensor)
-
-				output = model(ballot_type, contest_idx, tensor_images)
+				#print(contest_idx)
+				tensor_contest_idx = utils.cuda(torch.full( (len(dataset_index),), contest_idx, dtype=torch.long), config)
+				output = model(ballot_numbers, tensor_contest_idx, tensor_images)
 				#print(output)
 				#print(f"Dis is {ballot_type}{contest_idx}")
 				#print(f"Ve hav ze labils {len(labels[contest_idx])} {len(output)}")
-				losses = []
-				loss = float("inf")
-				best_output_index = 0
+				#if output.shape[-1] != tensor_labels.shape[-1]:
+					#print(output.shape,tensor_labels.shape)
+					#tensor_labels = torch.nn.functional.pad(tensor_labels, (0, output.shape[-1]-tensor_labels.shape[-1]), "constant", 0)
+				#print(output.shape)
+				output = output.narrow(-1, 0, tensor_labels.shape[-1])
 				#print(output)
-				for outer, one_output in enumerate(output):
-					#print("Batch element is", one_output)
-					inner_loss = []
-					for inner, row in enumerate(one_output):
-						inner_loss.append(criterion(row, tensor_labels[inner]))
-					
-					numeric_loss = [loss.data.item() for loss in inner_loss]
-					#print("Numeric is ", numeric_loss)
-					# If all NN's returned the right result, then we should weight all losses equally (i.e. not at all)
-					if max(numeric_loss) == 0 or (max(numeric_loss) == min(numeric_loss)):
-						scaled_coef = [1 for co in numeric_loss]
-						#print("1/n")
-					# Otherwise weight the losses towards those "close" to the best.
-					else:
-						#print(numeric_loss, max(numeric_loss), min(numeric_loss))
-						coef = [(max(numeric_loss) - i )/(max(numeric_loss)-min(numeric_loss)) for i in numeric_loss]
-						#print("Coefs are ", coef)
-						scaled_coef = [len(coef)*co/sum(coef) for co in coef]
-						#print("Scaled coefs are ", scaled_coef)
-					
-					loss = sum([scaled_coef[i]*item for i,item in enumerate(inner_loss)])
-					#print("Loss is ", loss)
-					losses.append(loss)
+				#print(output.shape)
+				loss = criterion(output, tensor_labels)
+				#print(output)
 
 				#print(losses)
 
 				# Perform optimization
 				if train:
-					"""all_losses = []
-					for i, lossy in enumerate(output):
-						loss_i = criterion(lossy, tensor_labels)
-						all_losses.append(loss_i)"""
-					real_loss = sum(losses)
-					real_loss.backward()
+					loss.backward()
 					optimizer.step()
-
-				output = output[best_output_index]
-
+				output = model.sigmoid(output)
+				#print(output)
 				# Possibly annotate ballots with the list of recorded votes.
 				if annotate_ballots:
 					for (index, output_labels) in enumerate(output):
@@ -378,7 +357,7 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 							batch_images+=1
 							# If the difference between the output and labels is greater than half of the range (i.e. .5),
 							# the network correctly chose the label for THIS option. No inference may be made about the whole contest.
-							if abs(labels[contest_idx][index][inner_index] - option_value) < .5:
+							if abs(tensor_labels[index][inner_index] - option_value) < .5:
 								batch_correct += 1
 
 				# Compute the number of contests where every option was selected correctly
@@ -388,7 +367,7 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 					for (index, contest_values) in enumerate(output):
 						#print(contest_values)
 						#print(value)
-						#print(labels[contest_idx], output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
+						#print(tensor_labels[index], output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
 						correct_so_far = True
 						for inner_index, inner_value in enumerate(contest_values):
 							# Labels are eof {0,1}. 1 indicates a vote for an option, 0 is not.
@@ -398,7 +377,7 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 							# then the network made a mistake on this contest, and the contest should be marked as incorrect.
 							#print(index, inner_index)
 							#print(inner_value, output[index], "    ", end=" ")
-							if abs(labels[contest_idx][index][inner_index] - inner_value) > .5:
+							if abs(tensor_labels[index][inner_index] - inner_value) > .5:
 								#print("wrong!", end="")
 								correct_so_far = False
 								break

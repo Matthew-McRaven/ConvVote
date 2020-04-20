@@ -213,6 +213,6 @@ ballot_file="CNNScan/Samples/Oregon/or2018ballot.pdf"
 # Provide interface to access ballot.
 def get_sample_ballot(factory):
 	local_ballot = factory.Ballot(contests=contests, ballot_file=ballot_file)
-	return CNNScan.Raster.Raster.rasterize_ballot_image(local_ballot, 400)
+	return CNNScan.Raster.Raster.rasterize_ballot_image(local_ballot, 100)
 
 del bd
