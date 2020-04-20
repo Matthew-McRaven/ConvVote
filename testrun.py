@@ -16,15 +16,15 @@ config = Settings.generate_default_settings()
 config['epochs'] = 10
 markdb = CNNScan.Mark.MarkDatabase()
 markdb.insert_mark(CNNScan.Mark.BoxMark())
-markdb.insert_mark(CNNScan.Mark.InvertMark())
-markdb.insert_mark(CNNScan.Mark.XMark())
+#markdb.insert_mark(CNNScan.Mark.InvertMark())
+#markdb.insert_mark(CNNScan.Mark.XMark())
 
 
 # Create fake data that can be used 
 ballot_factory = CNNScan.Ballot.BallotDefinitions.BallotFactory()
 #ballots = [CNNScan.Samples.Random.get_sample_ballot(ballot_factory) for i in range(2)]
 CNNScan.Samples.Oregon.get_sample_ballot(ballot_factory)
-CNNScan.Samples.Montana.get_sample_ballot(ballot_factory)
+#CNNScan.Samples.Montana.get_sample_ballot(ballot_factory)
 
 
 

@@ -295,7 +295,7 @@ def train_election(model, config, ballot_factory, train_loader, test_loader):
 # Account for varying number of ballots, as well annotating the data in the data loader with recorded votes.
 # Works for both training and development. Will probably not work with real data, since no labels/loss will be available.
 # TODO: Handle multiple "middle layer" CNN's.
-def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, optimizer=None, train=True, annotate_ballots=True, count_options=False, update_cnn_table=False):
+def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, optimizer=None, train=True, annotate_ballots=True, count_options=False):
 	batch_images, batch_loss, batch_correct = 0,0,0
 	ballot_types = [i for i in range(len(ballot_factory))]
 	random.shuffle(ballot_types)
@@ -324,14 +324,14 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 					#print("Numeric is ", numeric_loss)
 					# If all NN's returned the right result, then we should weight all losses equally (i.e. not at all)
 					if max(numeric_loss) == 0 or (max(numeric_loss) == min(numeric_loss)):
-						scaled_coef = [1/len(numeric_loss) for co in numeric_loss]
+						scaled_coef = [1 for co in numeric_loss]
 						#print("1/n")
 					# Otherwise weight the losses towards those "close" to the best.
 					else:
 						#print(numeric_loss, max(numeric_loss), min(numeric_loss))
 						coef = [(max(numeric_loss) - i )/(max(numeric_loss)-min(numeric_loss)) for i in numeric_loss]
 						#print("Coefs are ", coef)
-						scaled_coef = [co/sum(coef) for co in coef]
+						scaled_coef = [len(coef)*co/sum(coef) for co in coef]
 						#print("Scaled coefs are ", scaled_coef)
 					
 					loss = sum([scaled_coef[i]*item for i,item in enumerate(inner_loss)])
@@ -342,12 +342,13 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 
 				# Perform optimization
 				if train:
+					"""all_losses = []
+					for i, lossy in enumerate(output):
+						loss_i = criterion(lossy, tensor_labels)
+						all_losses.append(loss_i)"""
 					real_loss = sum(losses)
 					real_loss.backward()
 					optimizer.step()
-
-				if update_cnn_table:
-					pass
 
 				output = output[best_output_index]
 
@@ -383,6 +384,7 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 					batch_images += len(tensor_images)
 					
 					for (index, contest_values) in enumerate(output):
+						#print(contest_values)
 						#print(value)
 						#print(labels[contest_idx], output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
 						correct_so_far = True
