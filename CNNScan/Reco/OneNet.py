@@ -119,7 +119,8 @@ class ImageRescaler(nn.Module):
 			out = self.pool[lookup_index](out)
 			out_tens.append(out)
 		# All output tensors are now the same size.
-		return torch.cat(out_tens)
+		output = torch.stack(out_tens)
+		return output
 
 	def output_size(self):
 		return self.x_out_res * self.y_out_res
@@ -152,8 +153,8 @@ class ImageRescaler(nn.Module):
 				self.pool.append(nn.AvgPool2d((x_ratio, y_ratio)))
 
 				# Need input resolution to properly view(...) input tensor
-				self.x_in_res.append(x_in_res)
-				self.y_in_res.append(y_in_res)
+				self.x_in_res.append(imagex)
+				self.y_in_res.append(imagey)
 		# Print out the table that converts from 2d (ballot, contest) to the 1d module objects.
 		print(self.translate)
 
@@ -276,8 +277,9 @@ class BallotRecognizer(nn.Module):
 		batches = len(inputs)
 		outputs = self.module_list['rescaler'](ballot_number, contest_number, batches, inputs)
 		if True:
-			rep = torch.stack((outputs[0],outputs[0],outputs[0]))
+			rep = outputs[0]
 			im = self.reset(rep).convert("RGB")
+			os.makedirs(f"temp/imdump/", exist_ok=True)
 			im.save(f"temp/imdump/{self.dump_idx}.png")
 			im.close()
 			self.dump_idx+=1
