@@ -189,7 +189,7 @@ class OutputLabeler(nn.Module):
 		self.output_layers = nn.Linear(self.input_dimensions+config['recog_embed'], ballot_factory.max_options())
 		self.tx_table = nn.Embedding(ballot_factory.num_contests(), config['recog_embed'])
 		self.sigmoid = nn.Sigmoid()
-
+		self.config = config
 		start = 0
 		self.index_of = len(ballot_factory.ballots) * [None]
 		for outer, ballot in enumerate(ballot_factory.ballots):
@@ -213,9 +213,9 @@ class OutputLabeler(nn.Module):
 			contest = contest_number[index]
 			index = self.index_of[ballot][contest]
 			wanted_embeds.append(index)
-		tens = torch.tensor(wanted_embeds, dtype=torch.long)
+		tens = utils.cuda(torch.tensor(wanted_embeds, dtype=torch.long), self.config)
 		#print(tens)
-		emb = self.tx_table(tens)
+		emb = utils.cuda(self.tx_table(tens), self.config)
 		#print(emb)
 		#print(emb.shape, inputs.shape)
 		inputs = torch.cat((emb, inputs), 1)
@@ -307,8 +307,9 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 			#for i in range(1):
 				#contest_idx = 0
 				tensor_images = utils.cuda(images[contest_idx], config)
-				tensor_labels = utils.cuda(labels[contest_idx], config)
-				tensor_labels = tensor_labels.type(torch.FloatTensor)
+				tensor_labels = labels[contest_idx]
+				tensor_labels = utils.cuda(tensor_labels.type(torch.FloatTensor), config)
+
 				#print(contest_idx)
 				tensor_contest_idx = utils.cuda(torch.full( (len(dataset_index),), contest_idx, dtype=torch.long), config)
 				output = model(ballot_numbers, tensor_contest_idx, tensor_images)

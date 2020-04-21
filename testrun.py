@@ -30,7 +30,7 @@ CNNScan.Samples.Oregon.get_sample_ballot(ballot_factory)
 
 
 # Create faked marked ballots from ballot factories.
-data = CNNScan.Reco.Load.GeneratingDataSet(ballot_factory, markdb, 10)
+data = CNNScan.Reco.Load.GeneratingDataSet(ballot_factory, markdb, 100)
 load = torch.utils.data.DataLoader(data, batch_size=config['batch_size'], shuffle=True)
 
 # Attempts to train model.
