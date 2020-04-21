@@ -277,7 +277,7 @@ def train_election(model, config, ballot_factory, train_loader, test_loader):
 			if sum(row) == 0:
 				continue
 			print(f"Accuracy with {i+1} options is: {row[0:i+2]}")
-			print(f"Selection distribution is: batch_select{batch_select[i][0:i+2]}\n")
+			print(f"Selection distribution is: {batch_select[i][0:i+2]}\n")
 		#print(f"Guessed {batch_correct} options out of {batch_images} total for {100*batch_correct[0]/batch_images}% accuracy. Loss of {batch_loss}.")
 		
 		model.eval()
@@ -296,7 +296,7 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 	batch_images, batch_loss, batch_correct = 0,0,[None]*ballot_factory.max_options()
 	batch_select = [None]*(ballot_factory.max_options())
 	for i in range(ballot_factory.max_options()):
-		batch_correct[i]=[0]*ballot_factory.max_options()
+		batch_correct[i]=[0]*(ballot_factory.max_options()+1)
 	for i in range(ballot_factory.max_options()):
 		batch_select[i]=[0]*(ballot_factory.max_options()+1)
 	#print(len(batch_correct))
@@ -337,11 +337,11 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 							# If the difference between the output and labels is greater than half of the range (i.e. .5),
 							# the network correctly chose the label for THIS option. No inference may be made about the whole contest.
 							if inner_value > .5:
-								batch_select[len(output_labels)-1][inner_index+1]+=1
+								batch_select[tensor_labels.shape[-1] -1][inner_index+1]+=1
 								marked_one = True
 								#ballot.marked_contest[contest_idx].computed_vote_index.append(inner_index)
 						if not marked_one:
-							batch_select[len(output_labels)-1][0]+=1
+							batch_select[tensor_labels.shape[-1] -1][0]+=1
 									
 				# Compute the number of options determined correctly
 				for (index, contest_options) in enumerate(output):
