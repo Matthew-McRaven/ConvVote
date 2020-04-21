@@ -267,20 +267,21 @@ def train_election(model, config, ballot_factory, train_loader, test_loader):
 	for epoch in range(config['epochs']):
 
 		
+		print(f"\nEpoch {epoch}")
 		model.train()
 		optimizer.zero_grad()
-		(batch_images, batch_loss, batch_correct) = iterate_loader_once(config, model, ballot_factory, train_loader, criterion=criterion, optimizer=optimizer, train=True, annotate_ballots=False, count_options=True)
-		print(f"Guessed {batch_correct} options out of {batch_images} total for {100*batch_correct/batch_images}% accuracy. Loss of {batch_loss}.")
+		(batch_images, batch_loss, batch_correct) = iterate_loader_once(config, model, ballot_factory, train_loader, criterion=criterion, optimizer=optimizer, train=True, annotate_ballots=False)
+		for i, row in enumerate(batch_correct):
+			if sum(row) == 0:
+				continue
+			print(f"Accuracy with {i+1} options is: {row[0:i+2]}")
+		#print(f"Guessed {batch_correct} options out of {batch_images} total for {100*batch_correct[0]/batch_images}% accuracy. Loss of {batch_loss}.")
 		
 		model.eval()
 		with torch.no_grad():
-			(batch_images, batch_loss, batch_correct) = iterate_loader_once(config, model, ballot_factory, test_loader, criterion=criterion, train=False, count_options=True)
-			print(f"Guessed {batch_correct} options out of {batch_images} total for {100*batch_correct/batch_images}% accuracy. Loss of {batch_loss}.")
-			(batch_images, batch_loss, batch_correct) = iterate_loader_once(config, model, ballot_factory, test_loader, criterion=criterion, train=False, count_options=False)
-			print(f"Guessed {batch_correct} contests out of {batch_images} total for {100*batch_correct/batch_images}% accuracy. Loss of {batch_loss}.")
-		#raise NotImplementedError("Can't test ballots yet")
+			(batch_images, batch_loss, batch_correct) = iterate_loader_once(config, model, ballot_factory, test_loader, criterion=criterion, train=False)
+			#print(f"Guessed {batch_correct} options out of {batch_images} total for {100*batch_correct[0]/batch_images}% accuracy. Loss of {batch_loss}.")
 
-		#print(f"Guessed {batch_test_correct} ballots out of {batch_test_images} total for {100*batch_test_correct/batch_test_images}% accuracy")
 	return model
 
 
@@ -289,7 +290,10 @@ def train_election(model, config, ballot_factory, train_loader, test_loader):
 # Works for both training and development. Will probably not work with real data, since no labels/loss will be available.
 # TODO: Handle multiple "middle layer" CNN's.
 def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, optimizer=None, train=True, annotate_ballots=True, count_options=False):
-	batch_images, batch_loss, batch_correct = 0,0,0
+	batch_images, batch_loss, batch_correct = 0,0,[None]*ballot_factory.max_options()
+	for i in range(ballot_factory.max_options()):
+		batch_correct[i]=[0]*ballot_factory.max_options()
+	#print(len(batch_correct))
 	ballot_types = [i for i in range(len(ballot_factory))]
 	random.shuffle(ballot_types)
 	for ballot_type in ballot_types:
@@ -306,27 +310,17 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 				#print(contest_idx)
 				tensor_contest_idx = utils.cuda(torch.full( (len(dataset_index),), contest_idx, dtype=torch.long), config)
 				output = model(ballot_numbers, tensor_contest_idx, tensor_images)
-				#print(output)
-				#print(f"Dis is {ballot_type}{contest_idx}")
-				#print(f"Ve hav ze labils {len(labels[contest_idx])} {len(output)}")
-				#if output.shape[-1] != tensor_labels.shape[-1]:
-					#print(output.shape,tensor_labels.shape)
-					#tensor_labels = torch.nn.functional.pad(tensor_labels, (0, output.shape[-1]-tensor_labels.shape[-1]), "constant", 0)
-				#print(output.shape)
-				output = output.narrow(-1, 0, tensor_labels.shape[-1])
-				#print(output)
-				#print(output.shape)
-				loss = criterion(output, tensor_labels)
-				#print(output)
 
-				#print(losses)
+				output = output.narrow(-1, 0, tensor_labels.shape[-1])
+
+				loss = criterion(output, tensor_labels)
 
 				# Perform optimization
 				if train:
 					loss.backward()
 					optimizer.step()
 				output = model.sigmoid(output)
-				#print(output)
+
 				# Possibly annotate ballots with the list of recorded votes.
 				if annotate_ballots:
 					for (index, output_labels) in enumerate(output):
@@ -344,41 +338,20 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 									ballot.marked_contest[contest_idx].computed_vote_index.append(inner_index)
 
 				# Compute the number of options determined correctly
-				if count_options:
-					for (index, contest_options) in enumerate(output):
-						#print(labels[contest_idx][index], output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
-						for inner_index, option_value in enumerate(contest_options):
-							batch_images+=1
-							# If the difference between the output and labels is greater than half of the range (i.e. .5),
-							# the network correctly chose the label for THIS option. No inference may be made about the whole contest.
-							if abs(tensor_labels[index][inner_index] - option_value) < .5:
-								batch_correct += 1
-
-				# Compute the number of contests where every option was selected correctly
-				else:
-					batch_images += len(tensor_images)
+				for (index, contest_options) in enumerate(output):
+					num_wrong=0
+					num_total = 0
+					#print(labels[contest_idx][index], output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
+					for inner_index, option_value in enumerate(contest_options):
+						num_total+=1
+						# If the difference between the output and labels is greater than half of the range (i.e. .5),
+						# the network correctly chose the label for THIS option. No inference may be made about the whole contest.
+						if abs(tensor_labels[index][inner_index] - option_value) > .5:
+							num_wrong += 1
+					# TODO: Every entry in batch_correct is identical.... that doesn't seem right....
+					batch_images+=num_total
+					batch_correct[num_total-1][num_wrong]+=1
 					
-					for (index, contest_values) in enumerate(output):
-						#print(contest_values)
-						#print(value)
-						#print(tensor_labels[index], output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
-						correct_so_far = True
-						for inner_index, inner_value in enumerate(contest_values):
-							# Labels are eof {0,1}. 1 indicates a vote for an option, 0 is not.
-							# The output of the network is a vector of floats in the range [0,1], created by a sigmoid.
-							# If the output and label are close in value, the network correctly chose the label.
-							# If the difference between the output and labels is greater than half of the range (i.e. .5),
-							# then the network made a mistake on this contest, and the contest should be marked as incorrect.
-							#print(index, inner_index)
-							#print(inner_value, output[index], "    ", end=" ")
-							if abs(tensor_labels[index][inner_index] - inner_value) > .5:
-								#print("wrong!", end="")
-								correct_so_far = False
-								break
-
-						if correct_so_far:
-							batch_correct += 1
-							#batch_images += len(tensor_images)
 
 				# Accumulate losses
 				batch_loss += loss
