@@ -9,7 +9,10 @@ import typing
 
 import torch
 import torch.nn as nn
+import torchvision
 from torchvision import datasets, transforms
+import PIL
+from PIL import Image
 
 import CNNScan.Reco.Settings as Settings
 import CNNScan.utils as utils
@@ -192,7 +195,7 @@ class OutputLabeler(nn.Module):
 			self.output_layers=nn.Linear(last_size, ballot_factory.max_options())
 			self.output_dimension=ballot_factory.max_options()
 		else:
-			self.translate = [None] * len(ballot_factory.ballots)
+			#self.translate = [None] * len(ballot_factory.ballots)
 			self.output_layers = nn.ModuleList()
 			for _, ballot in enumerate(ballot_factory.ballots):
 				for contest in ballot.contests:
@@ -255,6 +258,7 @@ class BallotRecognizer(nn.Module):
 		rescaler = ImageRescaler(config, ballot_factory)
 		recognizer = ImageRecognitionCore(config, rescaler.output_dimensions())
 		labeler = OutputLabeler(config, recognizer.output_size(), ballot_factory)
+		self.dump_idx = 0
 
 		# Use an ordered dict so printing out the model prints in the correct order.
 		self.module_list = nn.ModuleDict(collections.OrderedDict([
@@ -263,10 +267,20 @@ class BallotRecognizer(nn.Module):
 			('labeler', labeler)])
 			)
 
-		
+	reset =  torchvision.transforms.Compose([# Genius 1-liner to undo-normalization from:
+											 # 		https://discuss.pytorch.org/t/simple-way-to-inverse-transform-normalization/4821/5
+					                         torchvision.transforms.Normalize((-1/127.5,),(1/127.5,)),
+											 torchvision.transforms.ToPILImage(),
+											])	
 	def forward(self, ballot_number, contest_number, inputs):
 		batches = len(inputs)
 		outputs = self.module_list['rescaler'](ballot_number, contest_number, batches, inputs)
+		if True:
+			rep = torch.stack((outputs[0],outputs[0],outputs[0]))
+			im = self.reset(rep).convert("RGB")
+			im.save(f"temp/imdump/{self.dump_idx}.png")
+			im.close()
+			self.dump_idx+=1
 		outputs = self.module_list['recognizer'](ballot_number, contest_number, batches, outputs)
 		outputs = self.module_list['labeler'](ballot_number, contest_number, batches, outputs)
 		outputs = outputs.view(batches, -1)
@@ -400,7 +414,7 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 				# Compute the number of options determined correctly
 				for (index, contest_options) in enumerate(output):
 					num_total, num_wrong = 0, 0
-					#print(labels[contest_idx][index], output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
+					print(labels[contest_idx][index], output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
 					for inner_index, option_value in enumerate(contest_options):
 						num_total+=1
 						# If the difference between the output and labels is greater than half of the range (i.e. .5),
