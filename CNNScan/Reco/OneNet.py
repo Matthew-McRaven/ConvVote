@@ -267,19 +267,22 @@ def train_election(model, config, ballot_factory, train_loader, test_loader):
 	for epoch in range(config['epochs']):
 
 		
-		print(f"\nEpoch {epoch}")
+		print(f"\n\nEpoch {epoch}")
+		print("From 0 wrong to n wrong.")
+		print("None selected, idx0 to idxn")
 		model.train()
 		optimizer.zero_grad()
-		(batch_images, batch_loss, batch_correct) = iterate_loader_once(config, model, ballot_factory, train_loader, criterion=criterion, optimizer=optimizer, train=True, annotate_ballots=False)
+		(batch_images, batch_loss, batch_correct, batch_select) = iterate_loader_once(config, model, ballot_factory, train_loader, criterion=criterion, optimizer=optimizer, train=True, annotate_ballots=False)
 		for i, row in enumerate(batch_correct):
 			if sum(row) == 0:
 				continue
 			print(f"Accuracy with {i+1} options is: {row[0:i+2]}")
+			print(f"Selection distribution is: batch_select{batch_select[i][0:i+2]}\n")
 		#print(f"Guessed {batch_correct} options out of {batch_images} total for {100*batch_correct[0]/batch_images}% accuracy. Loss of {batch_loss}.")
 		
 		model.eval()
 		with torch.no_grad():
-			(batch_images, batch_loss, batch_correct) = iterate_loader_once(config, model, ballot_factory, test_loader, criterion=criterion, train=False)
+			(batch_images, batch_loss, batch_correct, batch_select) = iterate_loader_once(config, model, ballot_factory, test_loader, criterion=criterion, train=False)
 			#print(f"Guessed {batch_correct} options out of {batch_images} total for {100*batch_correct[0]/batch_images}% accuracy. Loss of {batch_loss}.")
 
 	return model
@@ -291,8 +294,11 @@ def train_election(model, config, ballot_factory, train_loader, test_loader):
 # TODO: Handle multiple "middle layer" CNN's.
 def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, optimizer=None, train=True, annotate_ballots=True, count_options=False):
 	batch_images, batch_loss, batch_correct = 0,0,[None]*ballot_factory.max_options()
+	batch_select = [None]*(ballot_factory.max_options())
 	for i in range(ballot_factory.max_options()):
 		batch_correct[i]=[0]*ballot_factory.max_options()
+	for i in range(ballot_factory.max_options()):
+		batch_select[i]=[0]*(ballot_factory.max_options()+1)
 	#print(len(batch_correct))
 	ballot_types = [i for i in range(len(ballot_factory))]
 	random.shuffle(ballot_types)
@@ -322,21 +328,21 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 				output = model.sigmoid(output)
 
 				# Possibly annotate ballots with the list of recorded votes.
-				if annotate_ballots:
+				if True:
 					for (index, output_labels) in enumerate(output):
 						#print(value, output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
+						marked_one = False
+						#print(output_labels)
 						for inner_index, inner_value in enumerate(output_labels):
 							# If the difference between the output and labels is greater than half of the range (i.e. .5),
 							# the network correctly chose the label for THIS option. No inference may be made about the whole contest.
 							if inner_value > .5:
-								# selected_ballots contains a list of all selected ballot indicies.
-								# Must subscript with the "current" ballot.
-								location = dataset_index[index]
-								ballot = loader.dataset.at(location, ballot_number=ballot_type)
-								if contest_idx >= len(ballot.marked_contest):
-									#print(f"We have {len(ballot.marked_contest)} contests, but asked for {contest_idx}")
-									ballot.marked_contest[contest_idx].computed_vote_index.append(inner_index)
-
+								batch_select[len(output_labels)-1][inner_index+1]+=1
+								marked_one = True
+								#ballot.marked_contest[contest_idx].computed_vote_index.append(inner_index)
+						if not marked_one:
+							batch_select[len(output_labels)-1][0]+=1
+									
 				# Compute the number of options determined correctly
 				for (index, contest_options) in enumerate(output):
 					num_wrong=0
@@ -362,4 +368,4 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 				#del loss
 				#del output
 				torch.cuda.empty_cache()
-	return (batch_images, batch_loss, batch_correct)
+	return (batch_images, batch_loss, batch_correct, batch_select)
