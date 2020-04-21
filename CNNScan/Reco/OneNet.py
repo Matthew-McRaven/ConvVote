@@ -113,10 +113,8 @@ class ImageRescaler(nn.Module):
 			lookup_index = self.translate[ballot][contest]
 			# TODO: Perform pooling, interpolation, and nothing depending on the size ratios of in to out resolution.
 			out = self.pad[lookup_index](images[index])
-
 			out = self.pool[lookup_index](out)
 			out_tens.append(out)
-			#print(out.shape)
 		# All output tensors are now the same size.
 		return torch.cat(out_tens)
 
@@ -130,6 +128,7 @@ class ImageRescaler(nn.Module):
 
 	def resize(self, ballot_factory):
 		assert isinstance(ballot_factory, BallotDefinitions.BallotFactory)
+		# Create a 2d array to map from (ballot, contest) to offsets in padding, pooling arrays
 		self.translate = len(ballot_factory.ballots) * [None]
 		for outer, ballot in enumerate(ballot_factory.ballots):
 			start = len(self.pad)
@@ -185,10 +184,21 @@ class OutputLabeler(nn.Module):
 			layer_list.append((f"{config['recog_full_nlo']}{index}", non_linear))
 			layer_list.append((f"dropout{index}", nn.Dropout(config['dropout'])))
 			last_size = layer_size
-		layer_list.append((f"Output", nn.Linear(last_size, ballot_factory.max_options())))
-		self.output_layer_size = ballot_factory.max_options()
 
 		self.linear = nn.Sequential(collections.OrderedDict(layer_list)) #nn.Linear(input_dimensions, self.output_layer_size)
+
+		self.output_dimension = []
+		if not self.config['unique_outputs']:
+			self.output_layers=nn.Linear(last_size, ballot_factory.max_options())
+			self.output_dimension=ballot_factory.max_options()
+		else:
+			self.translate = [None] * len(ballot_factory.ballots)
+			self.output_layers = nn.ModuleList()
+			for _, ballot in enumerate(ballot_factory.ballots):
+				for contest in ballot.contests:
+					this_dim = len(contest.options)
+					self.output_dimension.append(this_dim)
+					self.output_layers.append(nn.Linear(last_size, this_dim))	
 
 		self.sigmoid = nn.Sigmoid()
 
@@ -220,6 +230,15 @@ class OutputLabeler(nn.Module):
 		# Merge the inputs and embedding definitions into a single quantity that can be manipulated by the linear layers.
 		inputs = torch.cat((emb, inputs), 1)
 		output = self.linear(inputs)
+		if self.config['unique_outputs']:
+			stackable = []
+			for index in range(len(ballot_number)):
+				ballot = ballot_number[index]
+				contest = contest_number[index]
+				stackable.append(self.output_layers[self.index_of[ballot][contest]](output[index]))
+			output = torch.stack(stackable)
+		else:
+			output = self.output_layers(output)
 		# Map outputs into range [0,1], with 1 being a vote for an option
 		# and 0 being the absence of a vote.
 		output = self.sigmoid(output)
@@ -292,6 +311,8 @@ def train_election(model, config, ballot_factory, train_loader, test_loader):
 		#print(f"Guessed {batch_correct} options out of {batch_images} total for {100*batch_correct[0]/batch_images}% accuracy. Loss of {batch_loss}.")
 		
 		model.eval()
+		count = 0
+		correct = 0
 		with torch.no_grad():
 			(batch_images, batch_loss, batch_correct, batch_select) = iterate_loader_once(config, model, ballot_factory, test_loader, criterion=criterion, train=False)
 			for i, row in enumerate(batch_correct):
@@ -299,6 +320,10 @@ def train_election(model, config, ballot_factory, train_loader, test_loader):
 					continue
 				print(f"Accuracy with {i+1} options is: {row[0:i+2]}")
 				print(f"Selection distribution is: {batch_select[i][0:i+2]}\n")
+				correct+=row[0]
+				count+=sum(row)
+
+		print(f"Accuracy of {100*correct/count}% for {count} contests")
 
 	return model
 

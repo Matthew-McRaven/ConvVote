@@ -17,7 +17,7 @@ def generate_default_settings():
 	ret['train_log_int']	= 1000
 
 	# See Settings::get_criterion() for available criterion.
-	ret['criterion'] 		= 'BCElog-sum'
+	ret['criterion'] 		= 'BCE-sum'
 	# See Settings::get_criterion() for available criterion.
 	ret['optimizer'] 		= 'adam'
 
@@ -46,6 +46,7 @@ def generate_default_settings():
 		pool_def(4, 1, 0, 1, True, 'avg')
 		]
 
+	ret['unique_outputs']		= True
 	ret['recog_full_nlo']		= "ReLu"
 	ret['recog_embed']			= 5
 	#ret['recog_full_layers']	= [100]
