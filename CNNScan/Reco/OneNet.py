@@ -88,10 +88,25 @@ class ImageRescaler(nn.Module):
 	def __init__(self, config, ballot_factory):
 		super(ImageRescaler, self).__init__()
 		# Configuration gives us a target output resolution.
-		self.x_out_res, self.y_out_res = config['target_resolution']
+		
 		# Don't allow an output size that is not a power of 2.
-		assert(utils.is_power2(self.x_out_res))
-		assert(utils.is_power2(self.y_out_res))
+		self.use_pool = config['rescale_pooling']
+		# If pooling is enabled, output resolutions must be a power of 2.
+		if self.use_pool:
+			self.x_out_res, self.y_out_res = config['target_resolution']
+			assert(utils.is_power2(self.x_out_res))
+			assert(utils.is_power2(self.y_out_res))
+		else:
+			# Otherwise, x,y only need to be padded to the size of the largest x,y size ever seen.
+			self.x_out_res, self.y_out_res = 0,0
+			for ballot in ballot_factory.ballots:
+				for contest in ballot.contests:
+					imagex = contest.abs_bounding_rect.lower_right.x - contest.abs_bounding_rect.upper_left.x
+					imagey = contest.abs_bounding_rect.lower_right.y - contest.abs_bounding_rect.upper_left.y
+					self.x_out_res = max(self.x_out_res, imagex)
+					self.y_out_res = max(self.y_out_res, imagey)
+		#print(self.x_out_res, self.y_out_res)
+
 
 		# Create a 2d array (filled in by resize) that maps a (ballot, contest) to an offset in the padding and pooling arrays.
 		self.translate = []
@@ -116,7 +131,9 @@ class ImageRescaler(nn.Module):
 			lookup_index = self.translate[ballot][contest]
 			# TODO: Perform pooling, interpolation, and nothing depending on the size ratios of in to out resolution.
 			out = self.pad[lookup_index](images[index])
-			out = self.pool[lookup_index](out)
+			#print(out.shape)
+			if self.use_pool:
+				out = self.pool[lookup_index](out)
 			out_tens.append(out)
 		# All output tensors are now the same size.
 		output = torch.stack(out_tens)
@@ -141,16 +158,37 @@ class ImageRescaler(nn.Module):
 				# Determine the height, width of each image by subtracting the bounding rectangles from each other.
 				imagex = contest.abs_bounding_rect.lower_right.x - contest.abs_bounding_rect.upper_left.x
 				imagey = contest.abs_bounding_rect.lower_right.y - contest.abs_bounding_rect.upper_left.y
-				# Must check that image being passed in is a power of 2, else pooling will fail.
-				x_in_res, pad_left, pad_right = utils.pad_nearest_pow2(imagex, self.x_out_res)
-				y_in_res, pad_top, pad_bottom = utils.pad_nearest_pow2(imagey, self.y_out_res)
-				#print(imagex, imagey)
+				if self.use_pool:
+					# Must check that image being passed in is a power of 2, else pooling will fail.
+					x_in_res, pad_left, pad_right = utils.pad_nearest_pow2(imagex, self.x_out_res)
+					y_in_res, pad_top, pad_bottom = utils.pad_nearest_pow2(imagey, self.y_out_res)
+					#print(imagex, imagey)
+					# Pad with 0's
+					#
+					# Since we've picked input resolutions, output resolutions that are powers of 2,
+					# ratios should be whole numbers (even without rounding).
+					x_ratio, y_ratio = x_in_res//self.x_out_res, y_in_res//self.y_out_res
+					self.pool.append(nn.AvgPool2d((x_ratio, y_ratio)))
+				else:
+					x_padding, y_padding = self.x_out_res - imagex, self.y_out_res - imagey
+					pad_left = x_padding // 2
+					pad_right = x_padding - pad_left
+					pad_top = y_padding // 2
+					pad_bottom = y_padding - pad_top
+
+				# Print the number of entries padded on each side of the image.
 				#print(pad_left, pad_right, pad_bottom, pad_top)
-				self.pad.append(nn.ZeroPad2d((pad_left, pad_right, pad_bottom, pad_top)))
-				# Since we've picked input resolutions, output resolutions that are powers of 2,
-				# ratios should be whole numbers (even without rounding).
-				x_ratio, y_ratio = x_in_res//self.x_out_res, y_in_res//self.y_out_res
-				self.pool.append(nn.AvgPool2d((x_ratio, y_ratio)))
+
+				# For now, only pad with zeros.
+				# Eventually, it would be nice to pad with 1's.
+				if True:
+					self.pad.append(nn.ZeroPad2d((pad_left, pad_right, pad_bottom, pad_top)))
+				# Pad with Green
+				elif False:
+					self.pad.append(nn.ConstantPad3d((pad_left, pad_right, pad_bottom, pad_top,0,0), 255))
+				# Pad with replication
+				else:
+					self.pad.append(nn.ReplicationPad2d((pad_left, pad_right, pad_bottom, pad_top)))
 
 				# Need input resolution to properly view(...) input tensor
 				self.x_in_res.append(imagex)
@@ -276,7 +314,7 @@ class BallotRecognizer(nn.Module):
 	def forward(self, ballot_number, contest_number, inputs):
 		batches = len(inputs)
 		outputs = self.module_list['rescaler'](ballot_number, contest_number, batches, inputs)
-		if True:
+		if False:
 			rep = outputs[0]
 			im = self.reset(rep).convert("RGB")
 			os.makedirs(f"temp/imdump/", exist_ok=True)
@@ -416,7 +454,7 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 				# Compute the number of options determined correctly
 				for (index, contest_options) in enumerate(output):
 					num_total, num_wrong = 0, 0
-					print(labels[contest_idx][index], output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
+					#print(labels[contest_idx][index], output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
 					for inner_index, option_value in enumerate(contest_options):
 						num_total+=1
 						# If the difference between the output and labels is greater than half of the range (i.e. .5),

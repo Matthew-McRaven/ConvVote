@@ -28,6 +28,8 @@ def generate_default_settings():
 	ret['epochs'] 			= 10
 	ret['batch_size']		= 7
 
+	# Enable / disable pooling in rescaler
+	ret['rescale_pooling'] 		= False
 	# Determine how to pad / cut the images
 	ret['target_resolution']	= (128, 128)
 	# Number of channels coming out of the rescaler.

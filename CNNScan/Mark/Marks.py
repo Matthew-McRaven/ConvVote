@@ -34,7 +34,7 @@ class XMark(MarkBase):
 		im = Image.new("RGBA",size=mark_shape.size())
 		draw = ImageDraw.Draw(im)
 		draw.line((0, 0) + im.size, fill=(255,0,0), width=4)
-		draw.line((0, im.size[1], im.size[0], 0), fill=(0,255,0), width=4)
+		draw.line((0, im.size[1], im.size[0], 0), fill=(0,0,255), width=4)
 		return im
 
 	def __call__(self, *args, **kwargs):
