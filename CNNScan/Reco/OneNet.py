@@ -53,7 +53,7 @@ class ImageRecognitionCore(nn.Module):
 					W = utils.resize_convolution(W, item.kernel, item.dilation, item.stride, item.padding)
 				else:
 					raise NotImplementedError(f"{item.pool_type.lower()} is not an implemented form of pooling.")
-
+			self.output_layer_size = H * W * in_channels
 			# Add a non-linear operator if specified by item. Non linear operators also pair with dropout
 			# in all the examples I've seen
 			if item.non_linear_after:
@@ -62,27 +62,6 @@ class ImageRecognitionCore(nn.Module):
 		
 		# Group all the convolutional layers into a single callable object.
 		self.conv_layers = nn.Sequential(collections.OrderedDict(conv_list))
-
-
-		# Construct fully connected layers
-		#print(H, W, in_channels, H*W*in_channels) #Print the size of the
-		layer_list =[]
-		# The input dimension of the fully connected layers in the product the parameters of the last convolutional/pooling layer
-		last_size = H*W*in_channels
-		non_linear = Settings.get_nonlinear(config['recog_full_nlo'])
-
-		# Iterate over list of fully connected layer definitions.
-		# Construct all items as a (name, layer) tuple so that the layers may be loaded into
-		# an ordered dictionary. Ordered dictionaries respect the order in which items were inserted,
-		# and are the least painful way to construct a nn.Sequential object.
-		for index, layer_size in enumerate(config['recog_full_layers']):
-			layer_list.append((f"fc{index}", nn.Linear(last_size, layer_size)))
-			layer_list.append((f"{config['recog_full_nlo']}{index}", non_linear))
-			layer_list.append((f"dropout{index}", nn.Dropout(config['dropout'])))
-			last_size = layer_size
-
-		self.output_layer_size = last_size
-		self.linear = nn.Sequential(collections.OrderedDict(layer_list)) #nn.Linear(input_dimensions, self.output_layer_size)
 		
 		# Randomize initial parameters
 		for p in self.parameters():
@@ -95,9 +74,6 @@ class ImageRecognitionCore(nn.Module):
 		# Magic line of code needed to cast image vector into correct dimensions?
 		images = images.view(batches, self.in_channels, H, W)
 		outputs = self.conv_layers(images)
-		# Flatten output of convolutional layers to be used by fully connected layers.
-		outputs = outputs.view(batches, -1)
-		outputs = self.linear(outputs)
 		return outputs
 
 	# Return the number of dimensions in the output size
@@ -185,9 +161,26 @@ class OutputLabeler(nn.Module):
 	def __init__(self, config, input_dimensions, ballot_factory):
 		super(OutputLabeler, self).__init__()
 		self.input_dimensions = input_dimensions
-		self.output_dimension = []
-		self.output_layers = nn.Linear(self.input_dimensions+config['recog_embed'], ballot_factory.max_options())
 		self.tx_table = nn.Embedding(ballot_factory.num_contests(), config['recog_embed'])
+		layer_list =[]
+		# The input dimension of the fully connected layers in the product the parameters of the last convolutional/pooling layer
+		last_size = self.input_dimensions+config['recog_embed']
+		non_linear = Settings.get_nonlinear(config['recog_full_nlo'])
+
+		# Iterate over list of fully connected layer definitions.
+		# Construct all items as a (name, layer) tuple so that the layers may be loaded into
+		# an ordered dictionary. Ordered dictionaries respect the order in which items were inserted,
+		# and are the least painful way to construct a nn.Sequential object.
+		for index, layer_size in enumerate(config['recog_full_layers']):
+			layer_list.append((f"fc{index}", nn.Linear(last_size, layer_size)))
+			layer_list.append((f"{config['recog_full_nlo']}{index}", non_linear))
+			layer_list.append((f"dropout{index}", nn.Dropout(config['dropout'])))
+			last_size = layer_size
+		layer_list.append((f"Output", nn.Linear(last_size, ballot_factory.max_options())))
+		self.output_layer_size = ballot_factory.max_options()
+
+		self.linear = nn.Sequential(collections.OrderedDict(layer_list)) #nn.Linear(input_dimensions, self.output_layer_size)
+
 		self.sigmoid = nn.Sigmoid()
 		self.config = config
 		start = 0
@@ -220,7 +213,7 @@ class OutputLabeler(nn.Module):
 		#print(emb.shape, inputs.shape)
 		inputs = torch.cat((emb, inputs), 1)
 		#print(inputs.shape)
-		output = self.output_layers(inputs)
+		output = self.linear(inputs)
 		# Map outputs into range [0,1], with 1 being a vote for an option
 		# and 0 being the absence of a vote.
 		#print(output)

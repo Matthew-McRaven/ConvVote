@@ -35,4 +35,5 @@ load = torch.utils.data.DataLoader(data, batch_size=config['batch_size'], shuffl
 
 # Attempts to train model.
 model = CNNScan.Reco.OneNet.BallotRecognizer(config, ballot_factory)
+print(model)
 model = CNNScan.Reco.OneNet.train_election(model, config, ballot_factory, load, load)
