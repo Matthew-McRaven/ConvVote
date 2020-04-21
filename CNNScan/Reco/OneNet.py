@@ -84,16 +84,19 @@ class ImageRecognitionCore(nn.Module):
 class ImageRescaler(nn.Module):
 	def __init__(self, config, ballot_factory):
 		super(ImageRescaler, self).__init__()
-		# Init self from parameters
+		# Configuration gives us a target output resolution.
 		self.x_out_res, self.y_out_res = config['target_resolution']
 		# Don't allow an output size that is not a power of 2.
 		assert(utils.is_power2(self.x_out_res))
 		assert(utils.is_power2(self.y_out_res))
 
+		# Create a 2d array (filled in by resize) that maps a (ballot, contest) to an offset in the padding and pooling arrays.
 		self.translate = []
 		self.pad = nn.ModuleList()
 		self.pool = nn.ModuleList()
+		# Input resolutions expected at the i'th entry of pad, pool.
 		self.x_in_res, self.y_in_res = [], []
+		# Fill in translation, pad, pool arrays.
 		self.resize(ballot_factory)
 
 	def forward(self, ballot_number, contest_number, batches, images):
@@ -102,17 +105,19 @@ class ImageRescaler(nn.Module):
 		assert len(ballot_number) == len(contest_number)
 		assert len(contest_number) == len(images)
 		assert len(images) == batches
+		# Each image may be a different size and may come from a different (ballot, contest) tuple
+		# Therefore, we can't truly batch this operation.
 		for index in range(len(ballot_number)):
 			ballot = ballot_number[index]
 			contest = contest_number[index]
 			lookup_index = self.translate[ballot][contest]
 			# TODO: Perform pooling, interpolation, and nothing depending on the size ratios of in to out resolution.
-			#print(images.shape)
 			out = self.pad[lookup_index](images[index])
-			#print(out.shape)
+
 			out = self.pool[lookup_index](out)
 			out_tens.append(out)
 			#print(out.shape)
+		# All output tensors are now the same size.
 		return torch.cat(out_tens)
 
 	def output_size(self):
@@ -160,17 +165,21 @@ class ImageRescaler(nn.Module):
 class OutputLabeler(nn.Module):
 	def __init__(self, config, input_dimensions, ballot_factory):
 		super(OutputLabeler, self).__init__()
+		self.config = config
 		self.input_dimensions = input_dimensions
+		# Create an embedding table to "learn" how a (ballot#, contest#) should be interpreted.
 		self.tx_table = nn.Embedding(ballot_factory.num_contests(), config['recog_embed'])
-		layer_list =[]
-		# The input dimension of the fully connected layers in the product the parameters of the last convolutional/pooling layer
+
+		# We concat the input with entries from our embedding table, so the "starting" size must be augmented.
 		last_size = self.input_dimensions+config['recog_embed']
+		# Get the non-linear operator to be used in the fully connected layers.
 		non_linear = Settings.get_nonlinear(config['recog_full_nlo'])
 
 		# Iterate over list of fully connected layer definitions.
 		# Construct all items as a (name, layer) tuple so that the layers may be loaded into
 		# an ordered dictionary. Ordered dictionaries respect the order in which items were inserted,
 		# and are the least painful way to construct a nn.Sequential object.
+		layer_list =[]
 		for index, layer_size in enumerate(config['recog_full_layers']):
 			layer_list.append((f"fc{index}", nn.Linear(last_size, layer_size)))
 			layer_list.append((f"{config['recog_full_nlo']}{index}", non_linear))
@@ -182,13 +191,13 @@ class OutputLabeler(nn.Module):
 		self.linear = nn.Sequential(collections.OrderedDict(layer_list)) #nn.Linear(input_dimensions, self.output_layer_size)
 
 		self.sigmoid = nn.Sigmoid()
-		self.config = config
+
+		# Create a table that maps from (ballot#, contest#) to an offset in the embedding table by enumerating all ballot definitons.
 		start = 0
 		self.index_of = len(ballot_factory.ballots) * [None]
 		for outer, ballot in enumerate(ballot_factory.ballots):
 			self.index_of[outer] = [i+start for i in range(len(ballot.contests))]
 			start += len(self.index_of[outer])
-		print(self.index_of)
 
 		# Randomize initial parameters
 		for p in self.parameters():
@@ -196,28 +205,24 @@ class OutputLabeler(nn.Module):
 				nn.init.kaiming_normal_(p)
 	
 	def forward(self, ballot_number, contest_number, batches, inputs):
-		#print(inputs)
+		# Input may be coming from CNN, so we must flatten to 1 dimension.
 		inputs = inputs.view(batches, -1)
-		#print(ballot_number, contest_number)
-		#print(torch.stack([ballot_number, contest_number]))
+		# Convert from the 2-d coordinates of (ballot, contest) to offset in embedding table.
 		wanted_embeds = []
 		for index in range(len(ballot_number)):
 			ballot = ballot_number[index]
 			contest = contest_number[index]
-			index = self.index_of[ballot][contest]
-			wanted_embeds.append(index)
+			wanted_embeds.append(self.index_of[ballot][contest])
+		# Create a tensor that can batch-index the embedding table
 		tens = utils.cuda(torch.tensor(wanted_embeds, dtype=torch.long), self.config)
-		#print(tens)
+		# Get all entries from the embedding table, and move it to the GPU.
 		emb = utils.cuda(self.tx_table(tens), self.config)
-		#print(emb)
-		#print(emb.shape, inputs.shape)
+		# Merge the inputs and embedding definitions into a single quantity that can be manipulated by the linear layers.
 		inputs = torch.cat((emb, inputs), 1)
-		#print(inputs.shape)
 		output = self.linear(inputs)
 		# Map outputs into range [0,1], with 1 being a vote for an option
 		# and 0 being the absence of a vote.
-		#print(output)
-		#output = self.sigmoid(output)
+		output = self.sigmoid(output)
 		return output
 
 # A container that holds the three portions of our Neural Network.
@@ -231,7 +236,6 @@ class BallotRecognizer(nn.Module):
 		rescaler = ImageRescaler(config, ballot_factory)
 		recognizer = ImageRecognitionCore(config, rescaler.output_dimensions())
 		labeler = OutputLabeler(config, recognizer.output_size(), ballot_factory)
-		self.sigmoid = nn.Sigmoid()
 
 		# Use an ordered dict so printing out the model prints in the correct order.
 		self.module_list = nn.ModuleDict(collections.OrderedDict([
@@ -270,20 +274,31 @@ def train_election(model, config, ballot_factory, train_loader, test_loader):
 		print(f"\n\nEpoch {epoch}")
 		print("From 0 wrong to n wrong.")
 		print("None selected, idx0 to idxn")
+
 		model.train()
 		optimizer.zero_grad()
-		(batch_images, batch_loss, batch_correct, batch_select) = iterate_loader_once(config, model, ballot_factory, train_loader, criterion=criterion, optimizer=optimizer, train=True, annotate_ballots=False)
-		for i, row in enumerate(batch_correct):
-			if sum(row) == 0:
-				continue
-			print(f"Accuracy with {i+1} options is: {row[0:i+2]}")
-			print(f"Selection distribution is: {batch_select[i][0:i+2]}\n")
+
+		# batch_images contains the # of images evaluated in the last batch
+		# batch_loss is the summed magnitude of total losst.
+		# batch_correct is a [i][j] array.
+		# The i'th dimension is a summary over all contests with i+1 options.
+		# The j dimensions corresponds to how many mistakes were made, with j being the # of mistakes.
+		# e.g. batch_correct[6][5] returns the number of times a contest with length 7 was evaluated with 4 errors.
+		# batch_select is an [i][j] array recording the distribution of votes.
+		# batch_select[i][0 corresponds to the number of contests with i-1 options wehre NO OPTION WAS VOTED FOR.
+		# batch_select[i][j] records the number of times the j-1'th option was selected in a contest with i-1 options
+		(batch_images, batch_loss, batch_correct, batch_select) = iterate_loader_once(config, model, ballot_factory, train_loader, criterion=criterion, optimizer=optimizer, train=True, annotate_ballots=True)
+		
 		#print(f"Guessed {batch_correct} options out of {batch_images} total for {100*batch_correct[0]/batch_images}% accuracy. Loss of {batch_loss}.")
 		
 		model.eval()
 		with torch.no_grad():
 			(batch_images, batch_loss, batch_correct, batch_select) = iterate_loader_once(config, model, ballot_factory, test_loader, criterion=criterion, train=False)
-			#print(f"Guessed {batch_correct} options out of {batch_images} total for {100*batch_correct[0]/batch_images}% accuracy. Loss of {batch_loss}.")
+			for i, row in enumerate(batch_correct):
+				if sum(row) == 0: # If there were no contests with i options, skip.
+					continue
+				print(f"Accuracy with {i+1} options is: {row[0:i+2]}")
+				print(f"Selection distribution is: {batch_select[i][0:i+2]}\n")
 
 	return model
 
@@ -291,62 +306,75 @@ def train_election(model, config, ballot_factory, train_loader, test_loader):
 # Iterate over all the data in a loader one time.
 # Account for varying number of ballots, as well annotating the data in the data loader with recorded votes.
 # Works for both training and development. Will probably not work with real data, since no labels/loss will be available.
-# TODO: Handle multiple "middle layer" CNN's.
 def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, optimizer=None, train=True, annotate_ballots=True, count_options=False):
 	batch_images, batch_loss, batch_correct = 0,0,[None]*ballot_factory.max_options()
+	# The [i][j]'th entry of batch select indicates for a contest with n options, how many votes there were for the j-1th option.
+	# Note that [i][0] records the number of "no vote for this contest". Also sum(array[i]) =/= number of ballots.
 	batch_select = [None]*(ballot_factory.max_options())
+	# Initialize the second dimension of the arrays. 
+	# Can't use a compound list comprehension, as it caused all inner lists to point to the same object instance (aka the same array).
 	for i in range(ballot_factory.max_options()):
 		batch_correct[i]=[0]*(ballot_factory.max_options()+1)
 	for i in range(ballot_factory.max_options()):
 		batch_select[i]=[0]*(ballot_factory.max_options()+1)
-	#print(len(batch_correct))
+
+	# Randomize the order that we visit ballots in, hopefully reducing bias in training.
+	# Ultimately, it would be best to intermix contests from all ballots, but our data loader cannot
+	# handle variation within sets of image tensors
 	ballot_types = [i for i in range(len(ballot_factory))]
 	random.shuffle(ballot_types)
 	for ballot_type in ballot_types:
+		# Make the len() and [] calls to the data loader resolve to a single ballot type,
+		# rather than accessing all ballot types at will.
 		loader.dataset.freeze_ballot_definiton_index(ballot_type)
 		for dataset_index, ballot_numbers, labels, images in loader:
+			# Create an array containing the ballot indecies of the i'th data item.
+			# (A ballot index points you to a specific ballot definition in the ballot_factory)
+			# Must be array, so that inputs to model may mix multiple contests from multiple ballots in a single batch.
 			ballot_numbers = ballot_numbers.type(torch.LongTensor)
 			for contest_idx in range(len(ballot_factory.ballots[ballot_type].contests)):
-			#for i in range(1):
-				#contest_idx = 0
 				tensor_images = utils.cuda(images[contest_idx], config)
 				tensor_labels = labels[contest_idx]
+				# Must move tensor to cuda *after* converting it to floats.
 				tensor_labels = utils.cuda(tensor_labels.type(torch.FloatTensor), config)
-
-				#print(contest_idx)
+				# Create an array containing the contest indecies of the i'th data item.
+				# (A contest index points you to a contest in a given ballot definition)
+				# Must be array, so that inputs to model may mix multiple contests from multiple ballots in a single batch.
 				tensor_contest_idx = utils.cuda(torch.full( (len(dataset_index),), contest_idx, dtype=torch.long), config)
 				output = model(ballot_numbers, tensor_contest_idx, tensor_images)
 
+				# Output has as many dimensions as contest with the most options for all ballots in the ballot factory.
+				# We don't care about outputs of the network that don't have corresponding labels, so chop them off.
+				# e.g. the output may have length 7, but the current ballot may only have 2 options.
+				# TODO: Mixed contests/ballots must resize the dimension iteratively.
 				output = output.narrow(-1, 0, tensor_labels.shape[-1])
 
 				loss = criterion(output, tensor_labels)
 
-				# Perform optimization
+				# Perform pytorch training.
 				if train:
 					loss.backward()
 					optimizer.step()
-				output = model.sigmoid(output)
 
-				# Possibly annotate ballots with the list of recorded votes.
-				if True:
+				# Annotate ballots with the list of recorded votes.
+				if annotate_ballots:
 					for (index, output_labels) in enumerate(output):
 						#print(value, output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
 						marked_one = False
-						#print(output_labels)
 						for inner_index, inner_value in enumerate(output_labels):
-							# If the difference between the output and labels is greater than half of the range (i.e. .5),
-							# the network correctly chose the label for THIS option. No inference may be made about the whole contest.
+							# Record all votes in the current contest.
 							if inner_value > .5:
+								# The size of the last dimension of the label tensor is the same the number of options in the current contest.
 								batch_select[tensor_labels.shape[-1] -1][inner_index+1]+=1
 								marked_one = True
 								#ballot.marked_contest[contest_idx].computed_vote_index.append(inner_index)
+						# If no votes were recorded for this contest, increment the section for "abstain".
 						if not marked_one:
 							batch_select[tensor_labels.shape[-1] -1][0]+=1
 									
 				# Compute the number of options determined correctly
 				for (index, contest_options) in enumerate(output):
-					num_wrong=0
-					num_total = 0
+					num_total, num_wrong = 0, 0
 					#print(labels[contest_idx][index], output[index]) #Print out the tensors being evaluated, useful when debugging output errors.
 					for inner_index, option_value in enumerate(contest_options):
 						num_total+=1
@@ -354,18 +382,19 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 						# the network correctly chose the label for THIS option. No inference may be made about the whole contest.
 						if abs(tensor_labels[index][inner_index] - option_value) > .5:
 							num_wrong += 1
-					# TODO: Every entry in batch_correct is identical.... that doesn't seem right....
 					batch_images+=num_total
+					# For the length of the current contest, increment the bin representing the number of options determiend incorrectly.
 					batch_correct[num_total-1][num_wrong]+=1
 					
 
 				# Accumulate losses
-				batch_loss += loss
+				batch_loss += loss.data.item()
 
 				# Clean up memory, since CUDA seems to leak memory when running for a long time.
 				del tensor_images
 				del tensor_labels
-				#del loss
-				#del output
+				del loss
+				del output
 				torch.cuda.empty_cache()
+
 	return (batch_images, batch_loss, batch_correct, batch_select)
