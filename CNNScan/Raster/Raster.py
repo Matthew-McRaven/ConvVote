@@ -77,6 +77,15 @@ def rasterize_ballot_image(ballot : BallotDefinitions.BallotFactory, dpi:int = 4
 			#print(option.bounding_rect)
 			option.abs_bounding_rect = fix_rect(option.rel_bounding_rect, width, height, page)
 			#print(option.bounding_rect)
+		
+		# Reduce size of balltos to only include options rectangles.
+		minx, maxx, miny, maxy = float("inf"),0,float("inf"),0
+		for option in contest.options:
+			minx = min(minx, option.abs_bounding_rect.upper_left.x)
+			miny = min(miny, option.abs_bounding_rect.upper_left.y)
+			maxx = max(maxx, option.abs_bounding_rect.lower_right.x)
+			maxy = max(maxy, option.abs_bounding_rect.lower_right.y)
+		contest.abs_bounding_rect = BallotDefinitions.Positions.to_pixel_pos(minx-1, miny-1, maxx+1, maxy+1, page)
 
 	for contest in ballot.contests:
 		assert isinstance(contest.abs_bounding_rect, CNNScan.Ballot.Positions.PixelPosition)
@@ -93,7 +102,6 @@ def crop_template(ballot_def : BallotDefinitions.Ballot):
 		page = contest.rel_bounding_rect.page
 		width,height = ballot_def.pages[page].size
 
-		
 		x0, y0 = contest.abs_bounding_rect.upper_left.x, contest.abs_bounding_rect.upper_left.y
 		x1, y1 = contest.abs_bounding_rect.lower_right.x, contest.abs_bounding_rect.lower_right.y
 		#print(option.bounding_rect)
@@ -128,7 +136,12 @@ def crop_contests(ballot_def : BallotDefinitions.Ballot, marked_ballot : MarkedB
 	for marked_contest in marked_ballot.marked_contest:
 		index = marked_contest.index
 		page = ballot_def.contests[index].abs_bounding_rect.page
-		width,height = marked_ballot.pages[page].size
+		minx, maxx, miny, maxy = float("inf"),0,float("inf"),0
+		for option in ballot_def.contests[marked_contest.index].options:
+			minx = min(minx, option.abs_bounding_rect.upper_left.x)
+			miny = min(miny, option.abs_bounding_rect.upper_left.y)
+			maxx = max(maxx, option.abs_bounding_rect.lower_right.x)
+			maxy = max(maxy, option.abs_bounding_rect.lower_right.y)
 
 		bounding_rect = ballot_def.contests[marked_contest.index].abs_bounding_rect
 		x0, y0 = bounding_rect.upper_left.x, bounding_rect.upper_left.y
