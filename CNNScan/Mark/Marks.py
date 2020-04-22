@@ -42,11 +42,13 @@ class XMark(MarkBase):
 
 
 class BoxMark(MarkBase):
+	def __init__(self, color=(255,0,0)):
+		self.color = color
 	def generate(self, image: Image, mark_shape: CNNScan.Ballot.Positions.PixelPosition) -> Image:
 		#print(mark_shape)
 		im = Image.new("RGBA",size=mark_shape.size())
 		draw = ImageDraw.Draw(im)
-		draw.rectangle((0, 0) + im.size, fill=(0, 0, 0), width=4)
+		draw.rectangle((0, 0) + im.size, fill=self.color, width=4)
 		return im
 
 	def __call__(self, *args, **kwargs):

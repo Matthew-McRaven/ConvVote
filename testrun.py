@@ -15,9 +15,9 @@ import CNNScan.Samples
 config = Settings.generate_default_settings()
 config['epochs'] = 50
 markdb = CNNScan.Mark.MarkDatabase()
-#markdb.insert_mark(CNNScan.Mark.BoxMark())
+markdb.insert_mark(CNNScan.Mark.BoxMark())
 #markdb.insert_mark(CNNScan.Mark.InvertMark())
-markdb.insert_mark(CNNScan.Mark.XMark())
+#markdb.insert_mark(CNNScan.Mark.XMark())
 
 
 # Create fake data that can be used 
