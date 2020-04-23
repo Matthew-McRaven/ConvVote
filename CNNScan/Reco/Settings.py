@@ -40,9 +40,9 @@ def generate_default_settings():
 	ret['recog_copies']			= 5
 	ret['recog_conv_layers'] 	= [
 		# Make sure the kernel size is SMALLER than the feature being recognized.
-		conv_def(4, 16, 1, 0, 1, False),
-		conv_def(4, 16, 1, 0, 1, False),
-		pool_def(4, 1, 0, 1, True, 'avg')
+		conv_def(4, 4, 1, 0, 1, False),
+		#conv_def(4, 16, 1, 0, 1, False),
+		pool_def(1, 1, 0, 1, True, 'avg')
 		#conv_def(6, 8, 2, 1, 2, False),
 		#conv_def(6, 8, 2, 1, 2, False),
 		#pool_def(4, 1, 0, 1, True, 'avg')
@@ -50,7 +50,7 @@ def generate_default_settings():
 	ret['unique_outputs']		= True
 	ret['recog_full_nlo']		= "ReLu"
 	ret['recog_embed']			= 5
-	ret['recog_full_layers']	= [100, 100, 100]
+	ret['recog_full_layers']	= [100]
 	#ret['recog_full_layers']	= [1600, 1000, 800, 600]
 
 	# How many values should come out of the ImageRecognitionCore class?

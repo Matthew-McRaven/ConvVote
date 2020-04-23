@@ -412,7 +412,6 @@ def iterate_loader_once(config, model, ballot_factory, loader, criterion=None, o
 			# Must be array, so that inputs to model may mix multiple contests from multiple ballots in a single batch.
 			ballot_numbers = ballot_numbers.type(torch.LongTensor)
 			for contest_idx in range(len(ballot_factory.ballots[ballot_type].contests)):
-				contest_idx = 0
 				tensor_images = utils.cuda(images[contest_idx], config)
 				tensor_labels = labels[contest_idx]
 				# Must move tensor to cuda *after* converting it to floats.
