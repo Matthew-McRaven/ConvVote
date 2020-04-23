@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>Contests</title>
+{% endblock %}
+
+{% block body %}
+<div class="content">
+    <h1 style="text-align: center">Contest Boxes </h1>
+    {% if contests|length < 1 %}
+    <h4 style="text-align: center">There are no contests marked</h4>
+    {% else %}
+    <table>
+        <tr class="top">
+            <th>Contest</th>
+            <th>Top Left X</th>
+            <th>Top Left Y</th>
+            <th>Bottom Right X</th>
+            <th>Bottom Right Y</th>
+            <th>Page</th>
+        </tr>
+        {% for contest in contests %}
+            <tr>
+                <td>{{ contest.id}}
+                <td>{{ contest.leftX }}</td>
+                <td>{{ contest.leftY }}</td>
+                <td>{{ contest.rightX }}</td>
+                <td>{{ contest.rightY }}</td>
+                <td>{{ contest.page }}</td>
+                <td>
+                    <a href="/delete/{{contest.id}}">Delete</a>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+    <a href="/delete_all">Delete All</a>
+
+    <div class="form">
+        <form action="/markup" method='GET'>
+            <input type="file" id="imagefile" name="imagefile" accept = ".pdf">
+            <br><input type="submit" value="Add Contest">
+            <br>Use Existing Files:<input type="checkbox" name="use-existing-files"/>
+        </form>
+    </div>
+
+    <div>
+        <form method='POST'>
+            <input type="text" name="file-name" value="ballot_template.txt">
+            <input type="submit" value="Save Contests">
+        </form>
+    </div>
+</div>
+{% endblock %}

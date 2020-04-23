@@ -1,0 +1,31 @@
+.form {
+	width: 50%;
+	left: 0;
+	font-family: sans-serif;
+	/*border: 2px solid red;*/
+}
+
+.image-display {
+	margin-top: 10px;
+	align-content: center;
+	display: inline;
+	margin-right: 10px;
+	margin-left: 10px;
+}
+
+.image-display img {
+	max-width: 30%;
+}
+
+.image-wrapper {
+	display: inline;
+}
+
+.redclass {
+	color: red;
+	font-size: 20px;
+}
+
+.outer {
+	display: inline;
+}
