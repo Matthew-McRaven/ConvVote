@@ -203,6 +203,10 @@ class ImageRescaler(nn.Module):
 
 # A class that takes an arbitrary number of inputs and useses it to perform class recognition on the data.
 # The output dimension should match the number of classes in the data.
+# Our neural net architecture has two output modes.
+# If in unique_outputs mode, there is a unique output layer for each (ballot, contest) pair.
+# Each output layer has as many neurons as there are options in the associated (ballot, contest) pair.
+# Otherwise, there is a single output layer shared between all (ballot, contest) pairs, which is as long as the longest pair.
 class OutputLabeler(nn.Module):
 	def __init__(self, config, input_dimensions, ballot_factory):
 		super(OutputLabeler, self).__init__()
