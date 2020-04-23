@@ -135,7 +135,9 @@ class MixedBallotDataSet(Dataset):
 		for i, contest in enumerate(val.marked_contest):
 			num_candidates = len(self.ballot_definition(index).contests[i].options)
 			# TODO: Create additional encodings (such a multi-class classification or ranked-choice) that may be choosen from here.
-			labels.append(torch.tensor(CNNScan.utils.labels_to_vec(contest.actual_vote_index, num_candidates), dtype=torch.float32))
+			#labels.append(torch.tensor(CNNScan.utils.labels_to_vec(contest.actual_vote_index, num_candidates), dtype=torch.float32))
+			# TODO: Report more than one label per contest.
+			labels.append(torch.tensor(contest.actual_vote_index[0], dtype=torch.long))
 			images.append(contest.tensor)
 		return (index, val.ballot_index, labels, images)
 
