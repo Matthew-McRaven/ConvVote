@@ -26,7 +26,7 @@ def generate_default_settings():
 	ret['l2_lambda'] 		= 0.01
 	ret['dropout'] 			= 0.1
 	ret['epochs'] 			= 10
-	ret['batch_size']		= 7
+	ret['batch_size']		= 20
 
 	# Enable / disable pooling in rescaler
 	ret['rescale_pooling'] 		= False
@@ -49,8 +49,8 @@ def generate_default_settings():
 		]
 	ret['unique_outputs']		= True
 	ret['recog_full_nlo']		= "ReLu"
-	ret['recog_embed']			= 5
-	ret['recog_full_layers']	= [100]
+	ret['recog_embed']			= 10
+	ret['recog_full_layers']	= [400, 400]
 	#ret['recog_full_layers']	= [1600, 1000, 800, 600]
 
 	# How many values should come out of the ImageRecognitionCore class?

@@ -13,11 +13,11 @@ import CNNScan.Samples
 # Choose to use real Oregon data (on which the network performs poorly)
 # Or choose randomly generate data, on which the network performs decently.
 config = Settings.generate_default_settings()
-config['epochs'] = 50
+config['epochs'] = 500
 markdb = CNNScan.Mark.MarkDatabase()
 markdb.insert_mark(CNNScan.Mark.BoxMark())
-#markdb.insert_mark(CNNScan.Mark.InvertMark())
-#markdb.insert_mark(CNNScan.Mark.XMark())
+markdb.insert_mark(CNNScan.Mark.InvertMark())
+markdb.insert_mark(CNNScan.Mark.XMark())
 
 
 # Create fake data that can be used 

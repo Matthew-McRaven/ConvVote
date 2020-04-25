@@ -42,7 +42,7 @@ def fix_rect(rect, width, height, page, old_width=1, old_height=1, width_offset=
 
 # Load the PDF associated with a ballot template, convert the PDF to a PIL.Image,
 # convert bounding rectangles from %'s to pixels, and store each of the page's images in ballot.pages.
-def rasterize_ballot_image(ballot : BallotDefinitions.BallotFactory, dpi:int = 400):
+def rasterize_ballot_image(ballot : BallotDefinitions.BallotFactory, crop_to_contests=False, dpi:int = 400):
 	# Establish pre-conditions that ballots have relative coordinates.
 	# print("ballot",ballot,"\ndirectory",directory)
 	assert isinstance(ballot, BallotDefinitions.Ballot)
@@ -79,13 +79,14 @@ def rasterize_ballot_image(ballot : BallotDefinitions.BallotFactory, dpi:int = 4
 			#print(option.bounding_rect)
 		
 		# Reduce size of balltos to only include options rectangles.
-		minx, maxx, miny, maxy = float("inf"),0,float("inf"),0
-		for option in contest.options:
-			minx = min(minx, option.abs_bounding_rect.upper_left.x)
-			miny = min(miny, option.abs_bounding_rect.upper_left.y)
-			maxx = max(maxx, option.abs_bounding_rect.lower_right.x)
-			maxy = max(maxy, option.abs_bounding_rect.lower_right.y)
-		contest.abs_bounding_rect = BallotDefinitions.Positions.to_pixel_pos(minx-1, miny-1, maxx+1, maxy+1, page)
+		if crop_to_contests:
+			minx, maxx, miny, maxy = float("inf"),0,float("inf"),0
+			for option in contest.options:
+				minx = min(minx, option.abs_bounding_rect.upper_left.x)
+				miny = min(miny, option.abs_bounding_rect.upper_left.y)
+				maxx = max(maxx, option.abs_bounding_rect.lower_right.x)
+				maxy = max(maxy, option.abs_bounding_rect.lower_right.y)
+			contest.abs_bounding_rect = BallotDefinitions.Positions.to_pixel_pos(minx-1, miny-1, maxx+1, maxy+1, page)
 
 	for contest in ballot.contests:
 		assert isinstance(contest.abs_bounding_rect, CNNScan.Ballot.Positions.PixelPosition)
