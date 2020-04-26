@@ -5,6 +5,7 @@ The ballot is available from:
 """
 
 import os
+import copy
 
 import torchvision
 
@@ -208,26 +209,10 @@ c24_opt.append(bd.Option(4, "E", to_pos(.0621, .4593, .0833, .4692,0)))
 c24_opt.append(bd.Option(5, "F", to_pos(.0621, .4772, .0833, .4871,0)))
 c24 = bd.Contest(24, "c24", "", c24_opt, to_pos(.0310, .3423, .3185, .4901,0), "c24.png")
 contests.append(c24)
-
-# contests = [c00]
-# Wrap contests in a ballot definition
-ballot = bd.Ballot(contests=contests, ballot_file="CNNScan/Samples/Oregon/or2018ballot.pdf")
+ballot_file="CNNScan/Samples/Oregon/or2018ballot.pdf"
 # Provide interface to access ballot.
-def get_sample_ballot():
-	global ballot
-	output_directory = "temp"
-	if not os.path.exists(output_directory):
-		os.mkdir(output_directory)
-	if not os.path.exists(output_directory+ "/ballot_template"):
-		os.mkdir(output_directory+ "/ballot_template")
-	transforms=torchvision.transforms.Compose([torchvision.transforms.Lambda(lambda x: np.average(x, axis=-1, weights=[1,1,1,0],returned=True)[0]),
-					                           torchvision.transforms.ToTensor(),
-											   torchvision.transforms.Lambda(lambda x: x.float()),
-											   torchvision.transforms.Normalize((1,),(127.5,))
-											   #torchvision.transforms.Lambda(lambda x: (1.0 - (x / 127.5)).float())
-											   ])
-	print(os.path.abspath(ballot.ballot_file))
-	ballot = CNNScan.Raster.Raster.rasterize_ballot_template(ballot, output_directory+"/ballot_template", 400)
-	return ballot
-	
+def get_sample_ballot(factory):
+	local_ballot = factory.Ballot(contests=contests, ballot_file=ballot_file)
+	return CNNScan.Raster.Raster.rasterize_ballot_image(local_ballot, 100)
+
 del bd

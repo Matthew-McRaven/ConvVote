@@ -18,7 +18,7 @@ class MarkedContest:
 		self.tensor = None
 
 class MarkedBallot:
-	def __init__(self, ballot, marked_contests, pages):
+	def __init__(self, ballot_index, marked_contests, pages):
 		# Do not store a pointer to the BallotDefinitions.Contest object.
 		# This massively inflates object size, and unduly creates memory pressure.
 		# This was discovered in the commit after 95ac0b79f1bc2083f6e270072637e72e6bc75ef8, 
@@ -29,3 +29,6 @@ class MarkedBallot:
 		# Store the images for each page of the printed PDF.
 		# Cloned from the ballot definition, and marked up using the Marks module.
 		self.pages = pages
+		
+		assert isinstance(ballot_index, int)
+		self.ballot_index = ballot_index

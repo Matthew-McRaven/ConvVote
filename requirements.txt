@@ -28,10 +28,6 @@ ipywidgets==7.5.1
 jedi==0.16.0
 Jinja2==2.11.0
 jsonschema==3.2.0
-jupyter==1.0.0
-jupyter-client==5.3.4
-jupyter-console==6.1.0
-jupyter-core==4.6.1
 kiwisolver==1.1.0
 MarkupSafe==1.1.1
 matplotlib==3.1.2
@@ -66,7 +62,6 @@ pytz==2019.3
 PyYAML==5.3
 pyzmq==18.1.1
 qtconsole==4.6.0
-ray==0.8.2
 redis==3.4.1
 requests==2.23.0
 Send2Trash==1.5.0

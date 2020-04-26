@@ -34,7 +34,7 @@ class XMark(MarkBase):
 		im = Image.new("RGBA",size=mark_shape.size())
 		draw = ImageDraw.Draw(im)
 		draw.line((0, 0) + im.size, fill=(255,0,0), width=4)
-		draw.line((0, im.size[1], im.size[0], 0), fill=(0,255,0), width=4)
+		draw.line((0, im.size[1], im.size[0], 0), fill=(0,0,255), width=4)
 		return im
 
 	def __call__(self, *args, **kwargs):
@@ -42,11 +42,13 @@ class XMark(MarkBase):
 
 
 class BoxMark(MarkBase):
+	def __init__(self, color=(255,0,0)):
+		self.color = color
 	def generate(self, image: Image, mark_shape: CNNScan.Ballot.Positions.PixelPosition) -> Image:
 		#print(mark_shape)
 		im = Image.new("RGBA",size=mark_shape.size())
 		draw = ImageDraw.Draw(im)
-		draw.rectangle((0, 0) + im.size, fill=(0, 0, 0), width=4)
+		draw.rectangle((0, 0) + im.size, fill=self.color, width=4)
 		return im
 
 	def __call__(self, *args, **kwargs):
@@ -92,7 +94,7 @@ class AssignApply:
 
 def apply_marks(contest, marked: CNNScan.Ballot.MarkedBallots.MarkedContest, mark, page, apply=AssignApply()):
 	for which in marked.actual_vote_index:
-		apply(page, contest.options[which].bounding_rect, mark)
+		apply(page, contest.options[which].abs_bounding_rect, mark)
 	return marked
 
 def mark_dataset(ballot:CNNScan.Ballot.BallotDefinitions.Ballot, transforms, count=100):

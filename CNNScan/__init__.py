@@ -3,3 +3,4 @@ from . import Raster
 from . import Reco
 from . import Samples
 from . import utils
+from . import tests
