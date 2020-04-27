@@ -3,7 +3,7 @@ import torch
 import torchvision
 import numpy as np
 
-from CNNScan.Reco import Driver, Settings
+from CNNScan.Reco import Settings
 import CNNScan.Samples
 
 # Choose to use real Oregon data (on which the network performs poorly)
@@ -30,6 +30,6 @@ data = CNNScan.Reco.Load.GeneratingDataSet(ballot_factory, markdb, 100)
 load = torch.utils.data.DataLoader(data, batch_size=config['batch_size'], shuffle=True)
 
 # Attempts to train model.
-model = CNNScan.Reco.OneNet.BallotRecognizer(config, ballot_factory)
+model = CNNScan.Reco.ContestRec.BallotRecognizer(config, ballot_factory)
 print(model)
-model = CNNScan.Reco.OneNet.train_election(model, config, ballot_factory, load, load)
+model = CNNScan.Reco.ContestRec.train_election(model, config, ballot_factory, load, load)

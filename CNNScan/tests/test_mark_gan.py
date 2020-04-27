@@ -1,5 +1,5 @@
 import unittest
-# Begin training neural net using default data / parameters
+
 import torch
 import torchvision
 import numpy as np
@@ -7,15 +7,10 @@ import numpy as np
 from CNNScan.Mark import gan
 import CNNScan.Mark.Settings
 
-
-
-
-
-
+# Check that the (discriminator, generator) pair works without crashing.
 class TestMarkGan(unittest.TestCase):
 		
-
-	# Check that the (discriminator, generator) pair runs without crashing.
+	# Check that the (discriminator, generator) pair runs
 	def test_gan_pair(self):
 		config = CNNScan.Mark.Settings.generate_default_settings()
 		config['epochs'] = 1

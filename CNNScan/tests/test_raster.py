@@ -24,9 +24,11 @@ import torch
 import torchvision
 import numpy as np
 
-from CNNScan.Reco import Driver, Settings
+from CNNScan.Reco import Settings
 import CNNScan.Samples
+import CNNScan.Mark
 
+# Check that the rasterization code properly converts from PDF 2 PNG.
 class TestConvertPDF2Image(unittest.TestCase):
 		
 
@@ -36,11 +38,16 @@ class TestConvertPDF2Image(unittest.TestCase):
 		ballot_factory = CNNScan.Ballot.BallotDefinitions.BallotFactory()
 		ballot = ballot_factory.Ballot(contests=oregon.contests, ballot_file=oregon.ballot_file)
 
-		ballot = CNNScan.Raster.Raster.rasterize_ballot_image(ballot , 400)
+		ballot = CNNScan.Raster.Raster.rasterize_ballot_image(ballot , 100)
 		#print(value)
 		config = CNNScan.Reco.Settings.generate_default_settings()
 		# Display a single sample ballot to visualize if training was succesful.
-		render_data = CNNScan.Reco.Driver.get_test(config, ballot_factory)
+		mark_db = CNNScan.Mark.MarkDatabase()
+		mark_db.insert_mark(CNNScan.Mark.BoxMark()) 
+		data = CNNScan.Reco.Load.GeneratingDataSet(ballot_factory, mark_db, 50)
+		#data = CNNScan.Reco.Load.GeneratingDataSet(ballot, mark_db, 100, transforms)
+		#print(data.at(0).marked_contest[0].image)
+		load = torch.utils.data.DataLoader(data, batch_size=config['batch_size'], shuffle=True, )
 
 		#CNNScan.utils.show_ballot(render_data.dataset.ballot_definition(0), render_data.dataset.at(0))
 		"""for i, contest in enumerate(render_data.dataset.at(0).marked_contest):
