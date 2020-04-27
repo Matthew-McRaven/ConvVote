@@ -14,7 +14,7 @@ from torchvision import datasets, transforms
 import PIL
 from PIL import Image
 
-import CNNScan.Reco.Settings as Settings
+import CNNScan.Settings, CNNScan.Reco.Settings
 import CNNScan.utils as utils
 from CNNScan.Ballot import BallotDefinitions, MarkedBallots
 import CNNScan.utils
@@ -29,7 +29,7 @@ class ImageRecognitionCore(nn.Module):
 		H = input_dimensions[0]
 		W = input_dimensions[1]
 		conv_list = []
-		non_linear = Settings.get_nonlinear(config['recog_conv_nlo'])
+		non_linear = CNNScan.Settings.get_nonlinear(config['recog_conv_nlo'])
 		self.in_channels = in_channels = config['target_channels']
 
 		# Iterate over all pooling/convolutional layer configurations.
@@ -38,14 +38,14 @@ class ImageRecognitionCore(nn.Module):
 		# and are the least painful way to construct a nn.Sequential object.
 		for index, item in enumerate(config['recog_conv_layers']):
 			# Next item is a convolutional layer, so construct one and re-compute H,W, channels.
-			if isinstance(item, Settings.conv_def):
+			if isinstance(item, CNNScan.Settings.conv_def):
 				conv_list.append((f'conv{index}', nn.Conv2d(in_channels, item.out_channels, item.kernel,
 				 stride=item.stride, padding=item.padding, dilation=item.dilation)))
 				H = utils.resize_convolution(H, item.kernel, item.dilation, item.stride, item.padding)
 				W = utils.resize_convolution(W, item.kernel, item.dilation, item.stride, item.padding)
 				in_channels = item.out_channels
 			# Next item is a pooling layer, so construct one and re-compute H,W.
-			elif isinstance(item, Settings.pool_def):
+			elif isinstance(item, CNNScan.Settings.pool_def):
 				if item.pool_type.lower() == 'avg':
 					conv_list.append((f'avgpool{index}',nn.AvgPool2d(item.kernel, stride=item.stride, padding=item.padding)))
 					H = utils.resize_convolution(H, item.kernel, 1, item.stride, item.padding)
@@ -218,7 +218,7 @@ class OutputLabeler(nn.Module):
 		# We concat the input with entries from our embedding table, so the "starting" size must be augmented.
 		last_size = self.input_dimensions+config['recog_embed']
 		# Get the non-linear operator to be used in the fully connected layers.
-		non_linear = Settings.get_nonlinear(config['recog_full_nlo'])
+		non_linear = CNNScan.Settings.get_nonlinear(config['recog_full_nlo'])
 
 		# Iterate over list of fully connected layer definitions.
 		# Construct all items as a (name, layer) tuple so that the layers may be loaded into
@@ -339,10 +339,10 @@ def train_election(model, config, ballot_factory, train_loader, test_loader):
 		model = utils.cuda(model, config)
 	
 	# Create loss function(s) for task.
-	criterion = Settings.get_criterion(config)
+	criterion = CNNScan.Settings.get_criterion(config)
 
 	# Choose an optimizer.
-	optimizer = Settings.get_optimizer(config, model)
+	optimizer = CNNScan.Settings.get_optimizer(config, model)
 
 	# Train the network for a given number of epochs.
 	for epoch in range(config['epochs']):

@@ -13,6 +13,8 @@ from torchvision import datasets, transforms
 import PIL
 from PIL import Image
 
+import CNNScan.Settings
+
 # Create a torch dataset from the marks included in CNNScan.Mark/marks
 # Must pass in CNNScan.Mark (the module) as the first positional.
 # This is because it is very difficult to "get" the module object for the module this code
@@ -40,20 +42,19 @@ The second predicition is whether the image is "real" or the image came from the
 The output ∈ [0,1], where output > .5 indicates the image is generated, and output < .5 indicates it is real.
 """
 class MarkDiscriminator(nn.Module):
-	# Input size is the number of items
-	# TODO: Change input_size to (channel, H, W) tuple
-	def __init__(self, config, input_size):
+	# Input size is a tuple of (channel count, height, width).
+	def __init__(self, config):
 		super(MarkDiscriminator, self).__init__()
-		self.input_size = input_size
-
-		# Create a list of linear layers from the config dict.
-		last_size = input_size
+		self.config = config
+		self.input_size = config['im_size']
+		print(self.input_size)
+		# Input size is height * width * channel count
+		last_size = self.input_size[1] * self.input_size[2] * self.input_size[0]
 		layer_list =[]
-		# TODO: Add parameter to config to read NN size. 
-		for index, layer_size in enumerate([200, 150, 100]):
+		# Create FC layers based on configuration.
+		for index, layer_size in enumerate(config['disc_full_layers']):
 			layer_list.append((f"fc{index}", nn.Linear(last_size, layer_size)))
-			# TODO: Select the NLO from config.
-			layer_list.append((f"{config['recog_full_nlo']}{index}", nn.LeakyReLU()))
+			layer_list.append((f"{config['nlo']}{index}", CNNScan.Settings.get_nonlinear(config['nlo'])))
 			layer_list.append((f"dropout{index}", nn.Dropout(config['dropout'])))
 			last_size = layer_size
 
@@ -75,43 +76,46 @@ class MarkDiscriminator(nn.Module):
 class MarkGenerator(nn.Module):
 	# Input_size is the number of random floats ∈ [0,1] given to the network per image.
 	# TODO: Change output_size to (channel, H, W) tuple
-	def __init__(self, config, input_size, output_size):
+	def __init__(self, config, input_size):
 		super(MarkGenerator, self).__init__()
+		self.config = config
 		self.input_size = input_size
-		# TODO: Read the embedding size from config.
-		self.embed_size = 5
+		self.output_size = config['im_size']
+		self.embed_size = config['gen_embed_size']
 		# TODO: Make number of classes vary with the number of classes in the dataset
 		self.embed = nn.Embedding(2, self.embed_size)
 		# Input to NN is a concatenation of seeds and embedding table values
 		last_size = input_size + self.embed_size
 		layer_list =[]
-		# TODO: Add parameter to config to read NN size. 
-		for index, layer_size in enumerate([200, 150, 100]):
+		# Create FC layers based on configuration.
+		for index, layer_size in enumerate(config['gen_full_layers']):
 			layer_list.append((f"fc{index}", nn.Linear(last_size, layer_size)))
-			# TODO: Select the NLO from config.
-			layer_list.append((f"{config['recog_full_nlo']}{index}", nn.LeakyReLU()))
+			layer_list.append((f"{config['nlo']}{index}", CNNScan.Settings.get_nonlinear(config['nlo'])))
 			layer_list.append((f"dropout{index}", nn.Dropout(config['dropout'])))
 			last_size = layer_size
 
 		self.linear = nn.Sequential(collections.OrderedDict(layer_list))
-		self.output = nn.Linear(last_size, output_size)
+		# Output size is height * width * channel count
+		self.output = nn.Linear(last_size, self.output_size[1] * self.output_size[2] * self.output_size[0])
 
 	def forward(self, seed, real_fake):
 		embeds = self.embed(real_fake)
 		inputs = torch.cat([seed, embeds], dim=-1)
 		outputs = self.linear(inputs)
 		outputs = self.output(outputs)
-		# TODO: Change output_size to (channel, H, W) tuple
-		outputs = outputs.view(len(seed), 4, 128, 128)
+		outputs = outputs.view(len(seed), self.output_size[0], self.output_size[1], self.output_size[2])
 		return outputs
 
 def train_once(config, generator, discriminator, train_loader, test_loader):
-	# TODO: Read criterion, optimizers from settings file.
-	criterion = torch.nn.MSELoss(reduction='sum')
-	optimizer_disc = torch.optim.Adam(discriminator.parameters(), lr=.001, weight_decay=.01)
-	optimizer_gen = torch.optim.Adam(generator.parameters(), lr=.001, weight_decay=.01)
+	# Create loss function(s) for task.
+	criterion = CNNScan.Settings.get_criterion(config)
+
+	# Choose an optimizer.
+	optimizer_disc = CNNScan.Settings.get_optimizer(config, discriminator)
+	optimizer_gen = CNNScan.Settings.get_optimizer(config, generator)
+
 	iterate_loader_once(config, generator, discriminator, train_loader, criterion, 
-	                    generated_count=5, optimizer_disc=optimizer_disc, optimizer_gen=optimizer_gen)
+	                    generated_count=config['generated_count'], optimizer_disc=optimizer_disc, optimizer_gen=optimizer_gen)
 
 def iterate_loader_once(config, generator, discriminator, loader, criterion, generated_count=10, do_train=True, 
                         k=1, optimizer_disc=None, optimizer_gen=None):
@@ -161,5 +165,5 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, gen
 			if do_train:
 				loss.backward()
 				optimizer.step()
-				
+
 			steps_trained += 1

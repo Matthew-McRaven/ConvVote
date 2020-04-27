@@ -6,10 +6,6 @@ import numpy as np
 from CNNScan.Reco import Driver, Settings
 import CNNScan.Samples
 
-
-from CNNScan.Reco import Driver, Settings
-import CNNScan.Samples
-
 # Choose to use real Oregon data (on which the network performs poorly)
 # Or choose randomly generate data, on which the network performs decently.
 config = Settings.generate_default_settings()
