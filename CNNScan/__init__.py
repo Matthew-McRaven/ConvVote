@@ -4,3 +4,4 @@ from . import Reco
 from . import Samples
 from . import utils
 from . import tests
+from . import Settings
