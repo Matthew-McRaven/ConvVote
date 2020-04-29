@@ -6,6 +6,7 @@ import collections
 import typing
 import importlib
 
+from tabulate import tabulate
 import torch
 import torch.nn as nn
 import torchvision
@@ -106,6 +107,12 @@ class MarkGenerator(nn.Module):
 		outputs = outputs.view(len(seed), self.output_size[0], self.output_size[1], self.output_size[2])
 		return outputs
 
+# Print out true vs false x positive vs negative table.
+def square_print(square, title):
+	print(title)
+	# Actual value is in first index, recorded value in second.
+	print(tabulate([["predict -",square[0][0],square[1][0]],["predict +",square[0][1],square[1][1]]],headers=['is-','is+']))
+
 def train_once(config, generator, discriminator, train_loader, test_loader):
 	# Create loss function(s) for task.
 	criterion = CNNScan.Settings.get_criterion(config)
@@ -113,57 +120,76 @@ def train_once(config, generator, discriminator, train_loader, test_loader):
 	# Choose an optimizer.
 	optimizer_disc = CNNScan.Settings.get_optimizer(config, discriminator)
 	optimizer_gen = CNNScan.Settings.get_optimizer(config, generator)
-
-	iterate_loader_once(config, generator, discriminator, train_loader, criterion, 
-	                    generated_count=config['generated_count'], optimizer_disc=optimizer_disc, optimizer_gen=optimizer_gen)
-
-def iterate_loader_once(config, generator, discriminator, loader, criterion, generated_count=10, do_train=True, 
-                        k=1, optimizer_disc=None, optimizer_gen=None):
-	# TODO: Compute (true, false) x (positive, negative) rates for detecting marks, generated images.
-	batch_count, batch_loss, marked_correct, real_correct = 0,0,0,0
 	steps_trained = 0
 	for epoch in range(config['epochs']):
-		for (images, marked_labels) in loader:
-			# Train the generator rather than the discriminator every k steps.
-			engage_gan = (((steps_trained + 1) % k) == 0)
+		(batch_count, batch_loss, steps_trained, marked_square, real_square) = iterate_loader_once(
+			config, generator, discriminator, train_loader, criterion, steps_trained=steps_trained,
+			generated_count=config['generated_count'], optimizer_disc=optimizer_disc, optimizer_gen=optimizer_gen)
+		print(f"This is epoch {epoch}. Saw {batch_count} images.")
+		square_print(real_square,"Real v. Generated")
+		print("")
+		square_print(marked_square,"Marked v. Unmarked")
+		print("\n")
+
+def iterate_loader_once(config, generator, discriminator, loader, criterion, generated_count=10, do_train=True, 
+                        k=2, optimizer_disc=None, optimizer_gen=None, steps_trained = 0):
+	# TODO: Compute (true, false) x (positive, negative) rates for detecting marks, generated images.
+	marked_square = [[0,0],[0,0]]
+	real_square = [[0,0],[0,0]]
+	batch_count, batch_loss = 0,0
+	for (images, marked_labels) in loader:
+		# Train the generator rather than the discriminator every k steps.
+		engage_gan = (((steps_trained + 1) % k) == 0)
 
 
-			gen_marked = torch.tensor(np.random.randint(0, 2, generated_count), dtype=torch.long)
-			gen_images = generator(torch.tensor(np.random.random((generated_count,10)), dtype=torch.float), gen_marked)
+		gen_marked = torch.tensor(np.random.randint(0, 2, generated_count), dtype=torch.long)
+		gen_images = generator(torch.tensor(np.random.random((generated_count,10)), dtype=torch.float), gen_marked)
 
-			# Combine real, generated data.
-			all_images = torch.cat((images, gen_images))
-			all_marked_labels = torch.cat((marked_labels, gen_marked))
-			# Label the images as either real (0) or generated (1), and cat the labels
-			real_label_tensor = torch.full((len(images),),0, dtype=torch.float)
-			fake_label_tensor = torch.full((generated_count,),1, dtype=torch.float)
-			all_real_labels = torch.cat((real_label_tensor, fake_label_tensor))
-			# The true number of items being fed into the network may be different from the batch_size hyperparameter if
-			# the last batch doesn't have enough items.
-			local_batch_size = len(images) + generated_count
+		# Combine real, generated data.
+		all_images = torch.cat((images, gen_images))
+		all_marked_labels = torch.cat((marked_labels, gen_marked))
+		# Label the images as either real (0) or generated (1), and cat the labels
+		real_label_tensor = torch.full((len(images),),0, dtype=torch.float)
+		fake_label_tensor = torch.full((generated_count,),1, dtype=torch.float)
+		all_real_labels = torch.cat((real_label_tensor, fake_label_tensor))
+		# The true number of items being fed into the network may be different from the batch_size hyperparameter if
+		# the last batch doesn't have enough items.
+		local_batch_size = len(images) + generated_count
 
-			# Shuffle real, generated data.
-			reorder = torch.randperm(local_batch_size)
-			all_real_labels = all_real_labels[reorder]
-			all_images = all_images[reorder]
-			all_marked_labels = all_marked_labels[reorder]
+		# Shuffle real, generated data.
+		reorder = torch.randperm(local_batch_size)
+		all_real_labels = all_real_labels[reorder]
+		all_images = all_images[reorder]
+		all_marked_labels = all_marked_labels[reorder]
 
-			# Feed all data through the discriminator.
-			out_combined_labels = discriminator(local_batch_size, all_images).view(-1)
-			# Combine is_real, and is_marked lables into a single tensor
-			actual_combined_labels = torch.cat((all_marked_labels.type(torch.FloatTensor), all_real_labels))
+		# Feed all data through the discriminator.
+		out_combined_labels = discriminator(local_batch_size, all_images).view(-1)
+		# Combine is_real, and is_marked lables into a single tensor
+		actual_combined_labels = torch.cat((all_marked_labels.type(torch.FloatTensor), all_real_labels))
 
-			# If on the k'th step, train the generator rather than the discriminator.
-			if engage_gan:
-				# Must invert loss because reason? TODO
-				loss = -criterion(out_combined_labels, actual_combined_labels)
-				optimizer = optimizer_gen
-			else:
-				loss = criterion(out_combined_labels, actual_combined_labels)
-				optimizer = optimizer_disc
+		# If on the k'th step, train the generator rather than the discriminator.
+		if engage_gan:
+			# Must invert loss because reason? TODO
+			loss = -criterion(out_combined_labels, actual_combined_labels)
+			optimizer = optimizer_gen
+		else:
+			loss = criterion(out_combined_labels, actual_combined_labels)
+			optimizer = optimizer_disc
 
-			if do_train:
-				loss.backward()
-				optimizer.step()
-
-			steps_trained += 1
+		if do_train:
+			loss.backward()
+			optimizer.step()
+		# Compute true +'ve -'ve, false +'ve -'ve rates for identification of
+		# whether it is marked or unmarked as well as if it is real or generated.
+		for i, output in enumerate(out_combined_labels.view(-1, 2)):
+			predict_mark, predict_real = output[0], output[1]
+			is_mark, is_real = all_marked_labels[i], all_real_labels[i]
+			#print(predict_real, is_real)
+			# Actual value is in first index, recorded value in second.
+			print(is_mark, predict_mark)
+			marked_square[int(is_mark.item())][round(predict_mark.item())]+=1
+			real_square[int(is_real.item())][round(predict_real.item())]+=1
+		batch_loss+=loss.data.item()
+		batch_count+=len(all_marked_labels)
+		steps_trained += 1
+	return (batch_count, batch_loss, steps_trained, marked_square, real_square)
