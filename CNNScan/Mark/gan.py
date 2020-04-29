@@ -24,10 +24,9 @@ def get_marks_dataset(package, transforms):
 	# Must supply a custom loader function to pytorch dataset, otherwise it opens images in incorrect mode,
 	# which makes all the pixels turn black.
 	def loader(path):
-		image = Image.open(path)
+		image = Image.open(path).convert('LA')
 		#image.show()
-		#print(path)
-		return image.convert('LA')
+		return image
 
 	# Get the real file-system path to CNNScan/Mark/marks dataset
 	real_path = importlib.resources.path(package, "marks")
@@ -110,7 +109,7 @@ class MarkGenerator(nn.Module):
 		outputs = self.linear(inputs)
 		outputs = self.output(outputs)
 		outputs = outputs.view(len(seed), self.output_size[0], self.output_size[1], self.output_size[2])
-		#outputs = self.out_normalize(outputs)
+		outputs = self.out_normalize(outputs)
 		return outputs
 
 # Print out true vs false x positive vs negative table.
@@ -128,18 +127,23 @@ def train_once(config, generator, discriminator, train_loader, test_loader):
 	optimizer_gen = CNNScan.Settings.get_optimizer(config, generator)
 	steps_trained = 0
 	for epoch in range(config['epochs']):
+		discriminator.train()
+		generator.train()
+		optimizer_disc.zero_grad()
+		optimizer_gen.zero_grad()
 		(batch_count, disc_loss, gen_loss, steps_trained, marked_square, real_square) = iterate_loader_once(
 			config, generator, discriminator, train_loader, criterion, steps_trained=steps_trained,
 			optimizer_disc=optimizer_disc, optimizer_gen=optimizer_gen)
-		#print(f"This is epoch {epoch}. Saw {batch_count} images.")
-		#square_print(real_square,"Real v. Generated")
-		#square_print(marked_square,"Marked v. Unmarked")
+		print(f"This is epoch {epoch}. Saw {batch_count} images.")
+		square_print(real_square,"Real v. Generated")
+		square_print(marked_square,"Marked v. Unmarked")
 		print(f"Loss is {disc_loss}, {gen_loss}")
-		#print("\n")
+		print("\n")
 
 
 def generate_images(generator, count, config, gen_marked):
 	return generator(torch.tensor(np.random.normal(size=(count, config['gen_seed_len'])), dtype=torch.float), gen_marked)
+
 def iterate_loader_once(config, generator, discriminator, loader, criterion, do_train=True, 
                         k=1, optimizer_disc=None, optimizer_gen=None, steps_trained = 0):
 	# TODO: Compute (true, false) x (positive, negative) rates for detecting marks, generated images.
@@ -174,7 +178,7 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, do_
 			# and which pictures will not.
 			marked_labels = torch.tensor(np.random.randint(0, 2, size=count), dtype=torch.long)
 			images = generate_images(generator, count, config, marked_labels)
-
+		
 		# Our real/fake label (which) needs to be as long as our image array.
 		real_labels = torch.full((len(images),),which, dtype=torch.float)
 		#toImage= torchvision.transforms.Compose([torchvision.transforms.ToPILImage(mode=None)])
@@ -184,6 +188,13 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, do_
 		# Add random noise to labels. Abs will "flip" the negative numbers about the origin.
 		# See: https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels
 		real_labels = abs(real_labels - noise)
+
+		"""if do_train and engage_gan:
+			discriminator.train(False)
+			generator.train(True)
+		elif do_train:
+			discriminator.train(True)
+			generator.train(False)"""
 
 		# Feed all data through the discriminator.
 		out_combined_labels = discriminator(len(images), images).view(-1)
@@ -195,7 +206,8 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, do_
 			# Must invert loss because reason? TODO
 			# Maybe flip GAN labels when training GAN?
 			# See: https://github.com/soumith/ganhacks#2-a-modified-loss-function
-			loss = criterion(out_combined_labels, 1-actual_combined_labels)
+			actual_combined_labels = torch.cat((marked_labels.type(torch.FloatTensor), 1-real_labels))
+			loss = criterion(out_combined_labels, actual_combined_labels)
 			gen_loss += loss.data.item()
 			optimizer = optimizer_gen
 		else:
@@ -207,6 +219,9 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, do_
 		if do_train:
 			loss.backward()
 			optimizer.step()
+
+			#discriminator.train(True)
+			#generator.train(True)
 
 		# Compute true +'ve -'ve, false +'ve -'ve rates for identification of
 		# whether it is marked or unmarked as well as if it is real or generated.
