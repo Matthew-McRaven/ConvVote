@@ -24,8 +24,10 @@ def get_marks_dataset(package, transforms):
 	# Must supply a custom loader function to pytorch dataset, otherwise it opens images in incorrect mode,
 	# which makes all the pixels turn black.
 	def loader(path):
+		image = Image.open(path)
+		#image.show()
 		#print(path)
-		return Image.open(path)
+		return image
 
 	# Get the real file-system path to CNNScan/Mark/marks dataset
 	real_path = importlib.resources.path(package, "marks")
@@ -98,6 +100,7 @@ class MarkGenerator(nn.Module):
 		self.linear = nn.Sequential(collections.OrderedDict(layer_list))
 		# Output size is height * width * channel count
 		self.output = nn.Linear(last_size, self.output_size[1] * self.output_size[2] * self.output_size[0])
+		self.out_normalize = nn.Tanh()
 
 	def forward(self, seed, real_fake):
 		embeds = self.embed(real_fake)
@@ -105,6 +108,7 @@ class MarkGenerator(nn.Module):
 		outputs = self.linear(inputs)
 		outputs = self.output(outputs)
 		outputs = outputs.view(len(seed), self.output_size[0], self.output_size[1], self.output_size[2])
+		outputs = self.out_normalize(outputs)
 		return outputs
 
 # Print out true vs false x positive vs negative table.
@@ -127,10 +131,11 @@ def train_once(config, generator, discriminator, train_loader, test_loader):
 			generated_count=config['generated_count'], optimizer_disc=optimizer_disc, optimizer_gen=optimizer_gen)
 		print(f"This is epoch {epoch}. Saw {batch_count} images.")
 		square_print(real_square,"Real v. Generated")
-		print("")
 		square_print(marked_square,"Marked v. Unmarked")
+		print(f"Loss is {batch_loss}")
 		print("\n")
-
+def generate_images(generator, count, config, gen_marked):
+	return generator(torch.tensor(np.random.normal(size=(count, config['gen_seed_len'])), dtype=torch.float), gen_marked)
 def iterate_loader_once(config, generator, discriminator, loader, criterion, generated_count=10, do_train=True, 
                         k=2, optimizer_disc=None, optimizer_gen=None, steps_trained = 0):
 	# TODO: Compute (true, false) x (positive, negative) rates for detecting marks, generated images.
@@ -141,10 +146,13 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, gen
 		# Train the generator rather than the discriminator every k steps.
 		engage_gan = (((steps_trained + 1) % k) == 0)
 
+		print(sum(sum(sum(images[0]))))
+		toImage= torchvision.transforms.Compose([torchvision.transforms.ToPILImage(mode=None)])
+		#toImage(images[0]).show()
+		#print(images[0])
 
 		gen_marked = torch.tensor(np.random.randint(0, 2, generated_count), dtype=torch.long)
-		gen_images = generator(torch.tensor(np.random.random((generated_count,10)), dtype=torch.float), gen_marked)
-
+		gen_images = generate_images(generator, generated_count, config, gen_marked)
 		# Combine real, generated data.
 		all_images = torch.cat((images, gen_images))
 		all_marked_labels = torch.cat((marked_labels, gen_marked))
@@ -170,7 +178,7 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, gen
 		# If on the k'th step, train the generator rather than the discriminator.
 		if engage_gan:
 			# Must invert loss because reason? TODO
-			loss = -criterion(out_combined_labels, actual_combined_labels)
+			loss = criterion(out_combined_labels, 1-actual_combined_labels)
 			optimizer = optimizer_gen
 		else:
 			loss = criterion(out_combined_labels, actual_combined_labels)
@@ -186,7 +194,7 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, gen
 			is_mark, is_real = all_marked_labels[i], all_real_labels[i]
 			#print(predict_real, is_real)
 			# Actual value is in first index, recorded value in second.
-			print(is_mark, predict_mark)
+			#print(is_mark, predict_mark)
 			marked_square[int(is_mark.item())][round(predict_mark.item())]+=1
 			real_square[int(is_real.item())][round(predict_real.item())]+=1
 		batch_loss+=loss.data.item()
