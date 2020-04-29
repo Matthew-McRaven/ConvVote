@@ -100,6 +100,8 @@ class MarkGenerator(nn.Module):
 		self.linear = nn.Sequential(collections.OrderedDict(layer_list))
 		# Output size is height * width * channel count
 		self.output = nn.Linear(last_size, self.output_size[1] * self.output_size[2] * self.output_size[0])
+		# Use Tanh, see:
+		#	https://github.com/soumith/ganhacks#1-normalize-the-inputs
 		self.out_normalize = nn.Tanh()
 
 	def forward(self, seed, real_fake):
@@ -134,10 +136,12 @@ def train_once(config, generator, discriminator, train_loader, test_loader):
 		square_print(marked_square,"Marked v. Unmarked")
 		print(f"Loss is {batch_loss}")
 		print("\n")
+
+
 def generate_images(generator, count, config, gen_marked):
 	return generator(torch.tensor(np.random.normal(size=(count, config['gen_seed_len'])), dtype=torch.float), gen_marked)
 def iterate_loader_once(config, generator, discriminator, loader, criterion, generated_count=10, do_train=True, 
-                        k=2, optimizer_disc=None, optimizer_gen=None, steps_trained = 0):
+                        k=1, optimizer_disc=None, optimizer_gen=None, steps_trained = 0):
 	# TODO: Compute (true, false) x (positive, negative) rates for detecting marks, generated images.
 	marked_square = [[0,0],[0,0]]
 	real_square = [[0,0],[0,0]]
@@ -160,6 +164,13 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, gen
 		real_label_tensor = torch.full((len(images),),0, dtype=torch.float)
 		fake_label_tensor = torch.full((generated_count,),1, dtype=torch.float)
 		all_real_labels = torch.cat((real_label_tensor, fake_label_tensor))
+
+		# Create random doubles between [0,.1]
+		noise = 0.4*torch.tensor(np.random.random(size=(len(all_real_labels),)) ,dtype=torch.float) - 0.2
+		# Add random noise to labels. Abs will "flip" the negative numbers about the origin.
+		# See: https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels
+		all_real_labels = abs(all_real_labels - noise)
+
 		# The true number of items being fed into the network may be different from the batch_size hyperparameter if
 		# the last batch doesn't have enough items.
 		local_batch_size = len(images) + generated_count
@@ -178,6 +189,8 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, gen
 		# If on the k'th step, train the generator rather than the discriminator.
 		if engage_gan:
 			# Must invert loss because reason? TODO
+			# Maybe flip GAN labels when training GAN?
+			# See: https://github.com/soumith/ganhacks#2-a-modified-loss-function
 			loss = criterion(out_combined_labels, 1-actual_combined_labels)
 			optimizer = optimizer_gen
 		else:
