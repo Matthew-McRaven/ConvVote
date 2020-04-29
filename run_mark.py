@@ -30,7 +30,7 @@ config['epochs'] = 50
 CNNScan.Mark.gan.train_once(config, gen_model, disc_model, loader, loader)
 
 count=4
-images = CNNScan.Mark.gan.generate_images(gen_model, count, config, torch.tensor(count*[1]))
+images = CNNScan.Mark.gan.generate_images(gen_model, count, config)
 print(images.shape)
 toImage= torchvision.transforms.Compose([
 										 torchvision.transforms.Normalize((-1/127.5,),(1/127.5,)),
