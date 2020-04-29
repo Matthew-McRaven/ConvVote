@@ -4,7 +4,7 @@ def generate_default_settings():
 	ret['nlo']					= "lrelu"
 	ret['learning_rate'] 		= 0.0001
 	# Size of mark images, mark outputs
-	ret['im_size']				= (2, 128, 128)
+	ret['im_size']				= (4, 128, 128)
 	ret['criterion'] 			= 'bce-sum'
 	# How many random values should be used to seed the generator?
 	ret['gen_seed_len']			= 100
