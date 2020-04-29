@@ -9,7 +9,6 @@ import CNNScan.Mark.Settings
 # Choose to use real Oregon data (on which the network performs poorly)
 # Or choose randomly generate data, on which the network performs decently.
 config = CNNScan.Mark.Settings.generate_default_settings()
-config['epochs'] = 1
 
 transforms = torchvision.transforms.Compose([
 											 #torchvision.transforms.Grayscale(),
@@ -18,7 +17,7 @@ transforms = torchvision.transforms.Compose([
 											 #torchvision.transforms.Lambda(lambda x: (x[0] + x[1] + x[2])/3)
 											])
 
-data = CNNScan.Mark.gan.get_marks_dataset(CNNScan.Mark, transforms)
+data = CNNScan.Mark.gan.get_marks_dataset(CNNScan.Mark, transforms, "only_square")
 loader = torch.utils.data.DataLoader(data, batch_size=config['batch_size'], shuffle=True)
 
 disc_model = CNNScan.Mark.gan.MarkDiscriminator(config)
@@ -31,14 +30,15 @@ config['epochs'] = 10
 CNNScan.Mark.gan.train_once(config, gen_model, disc_model, loader, loader)
 
 count=4
-images = CNNScan.Mark.gan.generate_images(gen_model, count, config, torch.tensor(count*[1]))
+images = CNNScan.Mark.gan.generate_images(gen_model, count, config)
 print(images.shape)
 toImage= torchvision.transforms.Compose([
 										 torchvision.transforms.Normalize((-1/127.5,),(1/127.5,)),
- 									     torchvision.transforms.ToPILImage(mode=None)
+ 									     torchvision.transforms.ToPILImage(mode='LA')
 										])
 for image in images:
 	#print(image.shape)
+	#image = (torchvision.transforms.Normalize((-1/127.5,),(1/127.5,))(image)).type(torch.ByteTensor)
 	print(image)
 	toImage(image).show()
 
