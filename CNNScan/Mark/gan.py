@@ -27,7 +27,7 @@ def get_marks_dataset(package, transforms):
 		image = Image.open(path)
 		#image.show()
 		#print(path)
-		return image
+		return image.convert('LA')
 
 	# Get the real file-system path to CNNScan/Mark/marks dataset
 	real_path = importlib.resources.path(package, "marks")
@@ -110,7 +110,7 @@ class MarkGenerator(nn.Module):
 		outputs = self.linear(inputs)
 		outputs = self.output(outputs)
 		outputs = outputs.view(len(seed), self.output_size[0], self.output_size[1], self.output_size[2])
-		outputs = self.out_normalize(outputs)
+		#outputs = self.out_normalize(outputs)
 		return outputs
 
 # Print out true vs false x positive vs negative table.
@@ -128,63 +128,67 @@ def train_once(config, generator, discriminator, train_loader, test_loader):
 	optimizer_gen = CNNScan.Settings.get_optimizer(config, generator)
 	steps_trained = 0
 	for epoch in range(config['epochs']):
-		(batch_count, batch_loss, steps_trained, marked_square, real_square) = iterate_loader_once(
+		(batch_count, disc_loss, gen_loss, steps_trained, marked_square, real_square) = iterate_loader_once(
 			config, generator, discriminator, train_loader, criterion, steps_trained=steps_trained,
-			generated_count=config['generated_count'], optimizer_disc=optimizer_disc, optimizer_gen=optimizer_gen)
-		print(f"This is epoch {epoch}. Saw {batch_count} images.")
-		square_print(real_square,"Real v. Generated")
-		square_print(marked_square,"Marked v. Unmarked")
-		print(f"Loss is {batch_loss}")
-		print("\n")
+			optimizer_disc=optimizer_disc, optimizer_gen=optimizer_gen)
+		#print(f"This is epoch {epoch}. Saw {batch_count} images.")
+		#square_print(real_square,"Real v. Generated")
+		#square_print(marked_square,"Marked v. Unmarked")
+		print(f"Loss is {disc_loss}, {gen_loss}")
+		#print("\n")
 
 
 def generate_images(generator, count, config, gen_marked):
 	return generator(torch.tensor(np.random.normal(size=(count, config['gen_seed_len'])), dtype=torch.float), gen_marked)
-def iterate_loader_once(config, generator, discriminator, loader, criterion, generated_count=10, do_train=True, 
+def iterate_loader_once(config, generator, discriminator, loader, criterion, do_train=True, 
                         k=1, optimizer_disc=None, optimizer_gen=None, steps_trained = 0):
 	# TODO: Compute (true, false) x (positive, negative) rates for detecting marks, generated images.
 	marked_square = [[0,0],[0,0]]
 	real_square = [[0,0],[0,0]]
-	batch_count, batch_loss = 0,0
-	for (images, marked_labels) in loader:
+	batch_count, disc_loss, gen_loss = 0,0,0
+
+	# We must either train entirely on real images or entirely on generated ones
+	# within a minibatch. Construct a list telling us at the i'th position which
+	# dataset to use.
+	batch_order = len(loader) * [0, 1]
+	random.shuffle(batch_order)
+	# We will need to iterate over dataloader manually
+	loader_it = iter(loader)
+
+	count = config['batch_size']
+
+	for which in batch_order:
 		# Train the generator rather than the discriminator every k steps.
-		engage_gan = (((steps_trained + 1) % k) == 0)
+		engage_gan = (((steps_trained + 1) % (k+1)) == 0)
 
-		print(sum(sum(sum(images[0]))))
-		toImage= torchvision.transforms.Compose([torchvision.transforms.ToPILImage(mode=None)])
-		#toImage(images[0]).show()
-		#print(images[0])
+		# This minibatch is real data, so iterate the data loader
+		if which == 0:
+			#try:
+			images, marked_labels = next(loader_it)
+			# If we ran out of data, don't crash, and instead yield another minibatch of generated data
+			#except StopIteration:
+				#which = 1
+		# Otherwise, this minibatch is is made of synthetic data.
+		if which == 1:
+			# Create an array of 0's and 1's which determine which pictures will contain marks
+			# and which pictures will not.
+			marked_labels = torch.tensor(np.random.randint(0, 2, size=count), dtype=torch.long)
+			images = generate_images(generator, count, config, marked_labels)
 
-		gen_marked = torch.tensor(np.random.randint(0, 2, generated_count), dtype=torch.long)
-		gen_images = generate_images(generator, generated_count, config, gen_marked)
-		# Combine real, generated data.
-		all_images = torch.cat((images, gen_images))
-		all_marked_labels = torch.cat((marked_labels, gen_marked))
-		# Label the images as either real (0) or generated (1), and cat the labels
-		real_label_tensor = torch.full((len(images),),0, dtype=torch.float)
-		fake_label_tensor = torch.full((generated_count,),1, dtype=torch.float)
-		all_real_labels = torch.cat((real_label_tensor, fake_label_tensor))
+		# Our real/fake label (which) needs to be as long as our image array.
+		real_labels = torch.full((len(images),),which, dtype=torch.float)
+		#toImage= torchvision.transforms.Compose([torchvision.transforms.ToPILImage(mode=None)])
 
 		# Create random doubles between [0,.1]
-		noise = 0.4*torch.tensor(np.random.random(size=(len(all_real_labels),)) ,dtype=torch.float) - 0.2
+		noise = 0.3*torch.tensor(np.random.random(size=(len(real_labels),)) ,dtype=torch.float) - 0.3
 		# Add random noise to labels. Abs will "flip" the negative numbers about the origin.
 		# See: https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels
-		all_real_labels = abs(all_real_labels - noise)
-
-		# The true number of items being fed into the network may be different from the batch_size hyperparameter if
-		# the last batch doesn't have enough items.
-		local_batch_size = len(images) + generated_count
-
-		# Shuffle real, generated data.
-		reorder = torch.randperm(local_batch_size)
-		all_real_labels = all_real_labels[reorder]
-		all_images = all_images[reorder]
-		all_marked_labels = all_marked_labels[reorder]
+		real_labels = abs(real_labels - noise)
 
 		# Feed all data through the discriminator.
-		out_combined_labels = discriminator(local_batch_size, all_images).view(-1)
+		out_combined_labels = discriminator(len(images), images).view(-1)
 		# Combine is_real, and is_marked lables into a single tensor
-		actual_combined_labels = torch.cat((all_marked_labels.type(torch.FloatTensor), all_real_labels))
+		actual_combined_labels = torch.cat((marked_labels.type(torch.FloatTensor), real_labels))
 
 		# If on the k'th step, train the generator rather than the discriminator.
 		if engage_gan:
@@ -192,25 +196,27 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, gen
 			# Maybe flip GAN labels when training GAN?
 			# See: https://github.com/soumith/ganhacks#2-a-modified-loss-function
 			loss = criterion(out_combined_labels, 1-actual_combined_labels)
+			gen_loss += loss.data.item()
 			optimizer = optimizer_gen
 		else:
 			loss = criterion(out_combined_labels, actual_combined_labels)
+			disc_loss += loss.data.item()
 			optimizer = optimizer_disc
+			
 
 		if do_train:
 			loss.backward()
 			optimizer.step()
+
 		# Compute true +'ve -'ve, false +'ve -'ve rates for identification of
 		# whether it is marked or unmarked as well as if it is real or generated.
 		for i, output in enumerate(out_combined_labels.view(-1, 2)):
 			predict_mark, predict_real = output[0], output[1]
-			is_mark, is_real = all_marked_labels[i], all_real_labels[i]
-			#print(predict_real, is_real)
+			is_mark, is_real = marked_labels[i], real_labels[i]
 			# Actual value is in first index, recorded value in second.
-			#print(is_mark, predict_mark)
 			marked_square[int(is_mark.item())][round(predict_mark.item())]+=1
 			real_square[int(is_real.item())][round(predict_real.item())]+=1
-		batch_loss+=loss.data.item()
-		batch_count+=len(all_marked_labels)
+
+		batch_count+=len(images)
 		steps_trained += 1
-	return (batch_count, batch_loss, steps_trained, marked_square, real_square)
+	return (batch_count, disc_loss, gen_loss, steps_trained, marked_square, real_square)

@@ -36,6 +36,7 @@ print(images.shape)
 toImage= torchvision.transforms.Compose([
 										 torchvision.transforms.Normalize((-1/127.5,),(1/127.5,)),
  									     torchvision.transforms.ToPILImage(mode=None)
+ 									     torchvision.transforms.ToPILImage(mode='LA')
 										])
 for image in images:
 	#print(image.shape)
