@@ -21,7 +21,7 @@ transforms = torchvision.transforms.Compose([
 											 #torchvision.transforms.Lambda(lambda x: (x[0] + x[1] + x[2])/3)
 											])
 
-data = CNNScan.Mark.gan.get_marks_dataset(CNNScan.Mark, transforms)
+data = CNNScan.Mark.gan.get_marks_dataset(CNNScan.Mark, transforms, "only_square")
 loader = torch.utils.data.DataLoader(data, batch_size=config['batch_size'], shuffle=True)
 
 disc_model = CNNScan.Mark.gan.MarkDiscriminator(config)
@@ -30,7 +30,7 @@ gen_model = CNNScan.Mark.gan.MarkGenerator(config, config['gen_seed_len'])
 print(disc_model)
 print(gen_model)
 
-config['epochs'] = 1
+config['epochs'] = 10
 CNNScan.Mark.gan.train_once(config, gen_model, disc_model, loader, loader)
 
 count=4

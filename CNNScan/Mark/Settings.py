@@ -6,8 +6,6 @@ def generate_default_settings():
 	# Size of mark images, mark outputs
 	ret['im_size']				= (2, 128, 128)
 	ret['criterion'] 			= 'bce-sum'
-	# How many generated items should be mixed in with each batch?
-	ret['generated_count']		= 3
 	# How many random values should be used to seed the generator?
 	ret['gen_seed_len']			= 100
 	# How many embedding entires should be used to encode class labels?
