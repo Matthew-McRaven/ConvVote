@@ -72,7 +72,7 @@ transforms = torchvision.transforms.Compose([
 											 #torchvision.transforms.Lambda(lambda x: (x[0] + x[1] + x[2])/3)
 											])
 
-config['epochs'] = 1
+config['epochs'] = 20
 config['batch_size'] = 5
 
 data = CNNScan.Mark.gan.get_marks_dataset(CNNScan.Mark, transforms)

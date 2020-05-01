@@ -16,6 +16,7 @@ import PIL
 from PIL import Image
 
 import CNNScan.Settings
+import CNNScan.utils as utils
 
 # Create a torch dataset from the marks included in CNNScan.Mark/marks
 # Must pass in CNNScan.Mark (the module) as the first positional.
@@ -95,15 +96,39 @@ class MarkGenerator(nn.Module):
 			last_size = layer_size
 
 		self.linear = nn.Sequential(collections.OrderedDict(layer_list))
-		# Output size is height * width * channel count
-		self.output = nn.Linear(last_size, self.output_size[1] * self.output_size[2] * self.output_size[0])
+
+		conv_list = []
+		# Should now be 32x32
+		conv_list.append(('A1',nn.Conv2d(15, 128,4,stride=2,padding=8+1,padding_mode='reflect')))
+		conv_list.append((f"B1", nn.LeakyReLU()))
+		conv_list.append((f"dropout1", nn.Dropout(config['dropout'])))
+		# Should now be 64x64
+		conv_list.append(('A2',nn.Conv2d(128, 128,4,stride=2,padding=24+1,padding_mode='reflect')))
+		conv_list.append((f"B2", nn.LeakyReLU()))
+		conv_list.append((f"dropout2", nn.Dropout(config['dropout'])))
+		# Should now be 128x128
+		conv_list.append(('A3',nn.Conv2d(128, 128,4,stride=2,padding=112+1,padding_mode='reflect')))
+		conv_list.append((f"B3", nn.LeakyReLU()))
+		conv_list.append((f"dropout3", nn.Dropout(config['dropout'])))
+		# Should now be 128x128
+		conv_list.append(('A4',nn.Conv2d(128, 4,4,stride=2,padding=64+1,padding_mode='reflect')))
+		conv_list.append((f"B4", nn.LeakyReLU()))
+		conv_list.append((f"dropout4", nn.Dropout(config['dropout'])))
+		
+		# Group all the convolutional layers into a single callable object.
+		self.conv_layers = nn.Sequential(collections.OrderedDict(conv_list))
+
 		# Use Tanh, see:
 		#	https://github.com/soumith/ganhacks#1-normalize-the-inputs
 		self.out_normalize = nn.Tanh()
 
 	def forward(self, seed):
 		outputs = self.linear(seed)
-		outputs = self.output(outputs)
+		outputs = outputs.view(len(seed),-1,16,16)
+		#print(outputs.shape)
+		#outputs = self.output(outputs)
+		outputs = self.conv_layers(outputs)
+		#print(outputs.shape)
 		outputs = outputs.view(len(seed), self.output_size[0], self.output_size[1], self.output_size[2])
 		outputs = self.out_normalize(outputs)
 		return outputs
