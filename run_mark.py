@@ -30,10 +30,10 @@ def raster_images(images):
 			fig.suptitle(f'Image {i} Channel Decomposition')
 
 			im1 = asLA(image)
-			RGBA = (1/3)*image[0] + (1/3)*image[1] + (1/3)*image[2]
+			RGBA = image[0]#(1/3)*image[0] + (1/3)*image[1] + (1/3)*image[2]
 			im2 = asL( torch.stack((RGBA,)) )
-			im3 = asL( torch.stack((image[3],))  )
-			im4 = asL( torch.stack((RGBA-image[3],)) )
+			im3 = asL( torch.stack((image[1],))  )
+			im4 = asL( torch.stack((RGBA-image[1],)) )
 
 			# Add axis titles and images.
 			og.set_title("Original Image")
@@ -72,7 +72,7 @@ transforms = torchvision.transforms.Compose([
 											 #torchvision.transforms.Lambda(lambda x: (x[0] + x[1] + x[2])/3)
 											])
 
-config['epochs'] = 20
+config['epochs'] = 50
 config['batch_size'] = 5
 
 data = CNNScan.Mark.gan.get_marks_dataset(CNNScan.Mark, transforms)
@@ -89,6 +89,6 @@ CNNScan.Mark.gan.train_once(config, gen_model, disc_model, loader, loader)
 count=4
 images = CNNScan.Mark.gan.generate_images(gen_model, count, config)
 
-im,labels = next(iter(loader))
+#im,labels = next(iter(loader))
 raster_images(images)
-raster_images(im)
+#raster_images(im)

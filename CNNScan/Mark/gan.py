@@ -26,7 +26,7 @@ def get_marks_dataset(package, transforms, subpath="only_marks"):
 	# Must supply a custom loader function to pytorch dataset, otherwise it opens images in incorrect mode,
 	# which makes all the pixels turn black.
 	def loader(path):
-		image = Image.open(path)#.convert('LA')
+		image = Image.open(path).convert('LA')
 		#image.show()
 		return image
 
@@ -99,21 +99,21 @@ class MarkGenerator(nn.Module):
 
 		conv_list = []
 		# Should now be 32x32
-		conv_list.append(('A1',nn.Conv2d(15, 128,4,stride=2,padding=8+1,padding_mode='reflect')))
+		conv_list.append(('A1',nn.ConvTranspose2d(15, 128,4,stride=2,padding=1)))
 		conv_list.append((f"B1", nn.LeakyReLU()))
 		conv_list.append((f"dropout1", nn.Dropout(config['dropout'])))
 		# Should now be 64x64
-		conv_list.append(('A2',nn.Conv2d(128, 128,4,stride=2,padding=24+1,padding_mode='reflect')))
+		conv_list.append(('A2',nn.ConvTranspose2d(128, 128,4,stride=2,padding=1)))
 		conv_list.append((f"B2", nn.LeakyReLU()))
 		conv_list.append((f"dropout2", nn.Dropout(config['dropout'])))
 		# Should now be 128x128
-		conv_list.append(('A3',nn.Conv2d(128, 128,4,stride=2,padding=112+1,padding_mode='reflect')))
+		conv_list.append(('A3',nn.ConvTranspose2d(128, 128,4,stride=2,padding=1)))
 		conv_list.append((f"B3", nn.LeakyReLU()))
 		conv_list.append((f"dropout3", nn.Dropout(config['dropout'])))
 		# Should now be 128x128
-		conv_list.append(('A4',nn.Conv2d(128, 4,4,stride=2,padding=64+1,padding_mode='reflect')))
-		conv_list.append((f"B4", nn.LeakyReLU()))
-		conv_list.append((f"dropout4", nn.Dropout(config['dropout'])))
+		conv_list.append(('A4',nn.Conv2d(128, 2,7,stride=1,padding=6,padding_mode='circular')))
+		#conv_list.append((f"B4", nn.LeakyReLU()))
+		#conv_list.append((f"dropout4", nn.Dropout(config['dropout'])))
 		
 		# Group all the convolutional layers into a single callable object.
 		self.conv_layers = nn.Sequential(collections.OrderedDict(conv_list))
@@ -124,11 +124,11 @@ class MarkGenerator(nn.Module):
 
 	def forward(self, seed):
 		outputs = self.linear(seed)
+		print(outputs.shape)
 		outputs = outputs.view(len(seed),-1,16,16)
-		#print(outputs.shape)
-		#outputs = self.output(outputs)
+		print(outputs.shape)
 		outputs = self.conv_layers(outputs)
-		#print(outputs.shape)
+		print(outputs.shape)
 		outputs = outputs.view(len(seed), self.output_size[0], self.output_size[1], self.output_size[2])
 		outputs = self.out_normalize(outputs)
 		return outputs
