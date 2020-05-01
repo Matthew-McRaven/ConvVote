@@ -17,6 +17,12 @@ def generate_default_settings():
 	]
 
 	# Discriminator configuraiton
+	ret['disc_conv_layers'] 	= [
+		# Make sure the kernel size is SMALLER than the feature being recognized.
+		CNNScan.Settings.conv_def(4, 4, 1, 0, 1, False),
+		CNNScan.Settings.pool_def(4, 4, 1, 0, 1, 'avg'),
+	]
 	ret['disc_full_layers']		= [400, 200]
+	
 
 	return ret

@@ -51,9 +51,17 @@ class MarkDiscriminator(nn.Module):
 		super(MarkDiscriminator, self).__init__()
 		self.config = config
 		self.input_size = config['im_size']
-		print(self.input_size)
+		
+		conv_layers = config['disc_conv_layers']
+		nlo_name = config['nlo']
+		tup = CNNScan.Settings.create_conv_layers(conv_layers, self.input_size[1:], self.input_size[0], nlo_name, config['dropout'])
+		conv_list, self.output_layer_size, H, W, out_channels = tup
+		# Group all the convolutional layers into a single callable object.
+		self.conv_layers = nn.Sequential(collections.OrderedDict(conv_list))
+
 		# Input size is height * width * channel count
-		last_size = self.input_size[1] * self.input_size[2] * self.input_size[0]
+		last_size = self.output_layer_size
+		print(last_size, self.output_layer_size)
 		layer_list =[]
 		# Create FC layers based on configuration.
 		for index, layer_size in enumerate(config['disc_full_layers']):
@@ -69,9 +77,13 @@ class MarkDiscriminator(nn.Module):
 		self.sigmoid = nn.Sigmoid()
 
 	def forward(self, batch_size, images):
+		
+		# Make sure images are n x channels x H x W before convolving.
+		images = images.view(batch_size, -1, self.input_size[1], self.input_size[2])
+		output = self.conv_layers(images)
 		# Flatten the input images into a 2d array
-		images = images.view(batch_size, -1)
-		output = self.linear(images)
+		output = output.view(batch_size, -1)
+		output = self.linear(output)
 		output = self.output(output)
 		# Clamp labels to [0,1].
 		output = self.sigmoid(output)
