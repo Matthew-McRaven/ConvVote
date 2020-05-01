@@ -49,18 +49,30 @@ def index():
 	if request.method=='POST':
 		rows = db.session.query(ContestData).all()
 		file = open(request.form['file-name'],"w+")
+		image_dir= "."+url_for('static',filename="images")
+		page_dims=[]
+		dirs=[]
+		for path in os.listdir(image_dir):
+			if "tmp" in path:
+				dirs.append(path)
+		dirs.sort()
+		for path in dirs:
+			img = Image.open("static/images/"+path)
+			page_dims.append(img.size)
+		print("dimensions",page_dims,dirs)
+
 		for row in rows:
 			if row.name:
-				file.write(f"C {row.id},{row.name},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.page}\n")
+				file.write(f"C,{row.id},{row.name},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.page},{page_dims[row.page-1]}\n")
 			else:
-				file.write(f"C {row.id},Contest{row.id},{row.leftX},{row.leftY} {row.rightX},{row.rightY},{row.page}\n")
+				file.write(f"C,{row.id},Contest{row.id},{row.leftX},{row.leftY} {row.rightX},{row.rightY},{row.page},{page_dims[row.page-1]}\n")
 		rows = db.session.query(OptionData).all()
 		# file = open(request.form['file-name'],"w+")
 		for row in rows:
 			if row.name:
-				file.write(f"O {row.id},{row.name},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.contest}\n")
+				file.write(f"O,{row.id},{row.name},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.contest}\n")
 			else:
-				file.write(f"O {row.id},Option{row.id},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.contest}\n")
+				file.write(f"O,{row.id},Option{row.id},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.contest}\n")
 		file.close()
 	# redirect to homepage
 

@@ -31,10 +31,14 @@
 	display: inline;
 	margin-right: 10px;
 	margin-left: 10px;
+	position: relative;
+}
+.marker {
+	position: absolute;
 }
 
 .image-display img {
-	max-width: 45%;
+	max-width: 80%;
 }
 
 .image-wrapper {
