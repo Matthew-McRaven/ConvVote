@@ -51,9 +51,17 @@ class MarkDiscriminator(nn.Module):
 		super(MarkDiscriminator, self).__init__()
 		self.config = config
 		self.input_size = config['im_size']
-		print(self.input_size)
+		
+		# Create a convolutional network from the settings file definition
+		conv_layers = config['disc_conv_layers']
+		nlo_name = config['nlo']
+		tup = CNNScan.Settings.create_conv_layers(conv_layers, self.input_size[1:], self.input_size[0], nlo_name, config['dropout'])
+		conv_list, self.output_layer_size, _, _, _ = tup
+		# Group all the convolutional layers into a single callable object.
+		self.conv_layers = nn.Sequential(collections.OrderedDict(conv_list))
+
 		# Input size is height * width * channel count
-		last_size = self.input_size[1] * self.input_size[2] * self.input_size[0]
+		last_size = self.output_layer_size
 		layer_list =[]
 		# Create FC layers based on configuration.
 		for index, layer_size in enumerate(config['disc_full_layers']):
@@ -69,52 +77,54 @@ class MarkDiscriminator(nn.Module):
 		self.sigmoid = nn.Sigmoid()
 
 	def forward(self, batch_size, images):
+		
+		# Make sure images are n x channels x H x W before convolving.
+		images = images.view(batch_size, -1, self.input_size[1], self.input_size[2])
+		output = self.conv_layers(images)
+
 		# Flatten the input images into a 2d array
-		images = images.view(batch_size, -1)
-		output = self.linear(images)
+		output = output.view(batch_size, -1)
+		output = self.linear(output)
 		output = self.output(output)
+
 		# Clamp labels to [0,1].
 		output = self.sigmoid(output)
 		return output
 
+# TODO: Document how to succesfully change the size of the generator NN.
+# Difficult because both input / output sizes are fixed.
 class MarkGenerator(nn.Module):
 	# Input_size is the number of random floats ∈ [0,1] given to the network per image.
-	# TODO: Change output_size to (channel, H, W) tuple
 	def __init__(self, config, input_size):
 		super(MarkGenerator, self).__init__()
 		self.config = config
 		self.input_size = input_size
+		self.seed_image_size = config['gen_seed_image']
 		self.output_size = config['im_size']
 
+		# Create a convolutional network from the settings file definition
+		conv_layers = config['gen_conv_layers']
+		nlo_name = config['nlo']
+		tup = CNNScan.Settings.create_conv_layers(conv_layers, self.seed_image_size[1:], self.seed_image_size[0], nlo_name, config['dropout'], True)
+		conv_list, self.output_layer_size, _, _, _ = tup
+
+		
 		last_size = input_size
 		layer_list =[]
+		true_layers = config['gen_full_layers']
+		H, W = self.seed_image_size[1], self.seed_image_size[2]
+
+		true_layers.append(self.seed_image_size[0]*H*W)
 		# Create FC layers based on configuration.
-		for index, layer_size in enumerate(config['gen_full_layers']):
+		for index, layer_size in enumerate(true_layers):
 			layer_list.append((f"fc{index}", nn.Linear(last_size, layer_size)))
 			layer_list.append((f"{config['nlo']}{index}", CNNScan.Settings.get_nonlinear(config['nlo'])))
 			layer_list.append((f"dropout{index}", nn.Dropout(config['dropout'])))
 			last_size = layer_size
-
+		self.rand_H, self.rand_W = H,W
 		self.linear = nn.Sequential(collections.OrderedDict(layer_list))
 
-		conv_list = []
-		# Should now be 32x32
-		conv_list.append(('A1',nn.ConvTranspose2d(15, 128,4,stride=2,padding=1)))
-		conv_list.append((f"B1", nn.LeakyReLU()))
-		conv_list.append((f"dropout1", nn.Dropout(config['dropout'])))
-		# Should now be 64x64
-		conv_list.append(('A2',nn.ConvTranspose2d(128, 128,4,stride=2,padding=1)))
-		conv_list.append((f"B2", nn.LeakyReLU()))
-		conv_list.append((f"dropout2", nn.Dropout(config['dropout'])))
-		# Should now be 128x128
-		conv_list.append(('A3',nn.ConvTranspose2d(128, 128,4,stride=2,padding=1)))
-		conv_list.append((f"B3", nn.LeakyReLU()))
-		conv_list.append((f"dropout3", nn.Dropout(config['dropout'])))
-		# Should now be 128x128
-		conv_list.append(('A4',nn.Conv2d(128, 2,7,stride=1,padding=6,padding_mode='circular')))
-		#conv_list.append((f"B4", nn.LeakyReLU()))
-		#conv_list.append((f"dropout4", nn.Dropout(config['dropout'])))
-		
+
 		# Group all the convolutional layers into a single callable object.
 		self.conv_layers = nn.Sequential(collections.OrderedDict(conv_list))
 
@@ -123,13 +133,16 @@ class MarkGenerator(nn.Module):
 		self.out_normalize = nn.Tanh()
 
 	def forward(self, seed):
+		# Turn seed into a fixed-size input, which is necessary for the CNN to work
 		outputs = self.linear(seed)
-		print(outputs.shape)
-		outputs = outputs.view(len(seed),-1,16,16)
-		print(outputs.shape)
+		# Resize the output of the linear layer to have a standard size.
+		#print(outputs.shape)
+		outputs = outputs.view(len(seed),-1, self.rand_H, self.rand_W)
 		outputs = self.conv_layers(outputs)
-		print(outputs.shape)
+		#print(outputs.shape)
+		# Reformat data to the correct dimensions of the output images.
 		outputs = outputs.view(len(seed), self.output_size[0], self.output_size[1], self.output_size[2])
+		# Tanh clamps pixels in [-1,1] which is supposedly a good idea (citation needed).
 		outputs = self.out_normalize(outputs)
 		return outputs
 
@@ -203,10 +216,10 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, do_
 		#toImage= torchvision.transforms.Compose([torchvision.transforms.ToPILImage(mode=None)])
 
 		# Create random doubles between [0,.1]
-		noise = 0.3*torch.tensor(np.random.random(size=(len(real_labels),)) ,dtype=torch.float) - 0.3
+		noise = 0.3*torch.tensor(np.random.random(size=(len(real_labels),)) ,dtype=torch.float) -.3
 		# Add random noise to labels. Abs will "flip" the negative numbers about the origin.
 		# See: https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels
-		real_labels = abs(real_labels - noise)
+		noised_labels = abs(real_labels - noise)
 
 		# Feed all data through the discriminator.
 		out_labels = discriminator(len(images), images).view(-1)
@@ -216,11 +229,11 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, do_
 			# Must invert loss because reason? TODO
 			# Maybe flip GAN labels when training GAN?
 			# See: https://github.com/soumith/ganhacks#2-a-modified-loss-function
-			loss = criterion(out_labels, 1-real_labels)
+			loss = criterion(out_labels, 1-noised_labels)
 			gen_loss += loss.data.item()
 			optimizer = optimizer_gen
 		else:
-			loss = criterion(out_labels, real_labels)
+			loss = criterion(out_labels, noised_labels)
 			disc_loss += loss.data.item()
 			optimizer = optimizer_disc
 			
