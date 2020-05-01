@@ -24,45 +24,12 @@ class ImageRecognitionCore(nn.Module):
 	def __init__(self, config, input_dimensions):
 		super(ImageRecognitionCore, self).__init__()
 		self.input_dimensions = input_dimensions
-
-		# Construct convolutional layers.
-		H = input_dimensions[0]
-		W = input_dimensions[1]
-		conv_list = []
-		non_linear = CNNScan.Settings.get_nonlinear(config['recog_conv_nlo'])
-		self.in_channels = in_channels = config['target_channels']
-
-		# Iterate over all pooling/convolutional layer configurations.
-		# Construct all items as a (name, layer) tuple so that the layers may be loaded into
-		# an ordered dictionary. Ordered dictionaries respect the order in which items were inserted,
-		# and are the least painful way to construct a nn.Sequential object.
-		for index, item in enumerate(config['recog_conv_layers']):
-			# Next item is a convolutional layer, so construct one and re-compute H,W, channels.
-			if isinstance(item, CNNScan.Settings.conv_def):
-				conv_list.append((f'conv{index}', nn.Conv2d(in_channels, item.out_channels, item.kernel,
-				 stride=item.stride, padding=item.padding, dilation=item.dilation)))
-				H = utils.resize_convolution(H, item.kernel, item.dilation, item.stride, item.padding)
-				W = utils.resize_convolution(W, item.kernel, item.dilation, item.stride, item.padding)
-				in_channels = item.out_channels
-			# Next item is a pooling layer, so construct one and re-compute H,W.
-			elif isinstance(item, CNNScan.Settings.pool_def):
-				if item.pool_type.lower() == 'avg':
-					conv_list.append((f'avgpool{index}',nn.AvgPool2d(item.kernel, stride=item.stride, padding=item.padding)))
-					H = utils.resize_convolution(H, item.kernel, 1, item.stride, item.padding)
-					W = utils.resize_convolution(W, item.kernel, 1, item.stride, item.padding)
-				elif item.pool_type.lower() == 'max':
-					conv_list.append((f'maxpool{index}', nn.MaxPool2d(item.kernel, stride=item.stride, padding=item.padding, dilation=item.dilation)))
-					H = utils.resize_convolution(H, item.kernel, item.dilation, item.stride, item.padding)
-					W = utils.resize_convolution(W, item.kernel, item.dilation, item.stride, item.padding)
-				else:
-					raise NotImplementedError(f"{item.pool_type.lower()} is not an implemented form of pooling.")
-			self.output_layer_size = H * W * in_channels
-			# Add a non-linear operator if specified by item. Non linear operators also pair with dropout
-			# in all the examples I've seen
-			if item.non_linear_after:
-				conv_list.append((f"{config['recog_conv_nlo']}{index}", non_linear))
-				conv_list.append((f"dropout{index}", nn.Dropout(config['dropout'])))
 		
+		conv_layers = config['recog_conv_layers']
+		self.in_channels = config['target_channels']
+		nlo_name = config['recog_conv_nlo']
+		tup = CNNScan.Settings.create_conv_layers(conv_layers, input_dimensions, self.in_channels, nlo_name, config['dropout'])
+		conv_list, self.output_layer_size, H, W, out_channels = tup
 		# Group all the convolutional layers into a single callable object.
 		self.conv_layers = nn.Sequential(collections.OrderedDict(conv_list))
 		
