@@ -256,4 +256,14 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, do_
 
 		batch_count+=len(images)
 		steps_trained += 1
+
+		# Free allocated memory to prevent crashes.
+		del loss
+		del noised_labels
+		del real_labels
+		del out_labels
+		del images
+
+		torch.cuda.empty_cache()
+
 	return (batch_count, disc_loss, gen_loss, steps_trained, real_square)
