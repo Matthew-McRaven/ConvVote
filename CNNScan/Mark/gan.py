@@ -22,7 +22,15 @@ import CNNScan.utils as utils
 # Must pass in CNNScan.Mark (the module) as the first positional.
 # This is because it is very difficult to "get" the module object for the module this code
 # resides in.
-def get_marks_dataset(package, transforms, subpath="only_marks"):
+def get_marks_dataset(package, transforms=None, subpath="only_marks"):
+	# Bunch of duplicate code implementing transforms, so localize definition to this method.
+	if transforms is None:
+		transforms = torchvision.transforms.Compose([
+												#torchvision.transforms.Grayscale(),
+												torchvision.transforms.ToTensor(),
+												torchvision.transforms.Normalize((1,),(127.5,))
+												#torchvision.transforms.Lambda(lambda x: (x[0] + x[1] + x[2])/3)
+												])
 	# Must supply a custom loader function to pytorch dataset, otherwise it opens images in incorrect mode,
 	# which makes all the pixels turn black.
 	def loader(path):
@@ -221,6 +229,9 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, do_
 		# See: https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels
 		noised_labels = abs(real_labels - noise)
 
+		real_labels = utils.cuda(images, config)
+		noised_labels = utils.cuda(noised_labels, config)
+		images = utils.cuda(images, config)
 		# Feed all data through the discriminator.
 		out_labels = discriminator(len(images), images).view(-1)
 
