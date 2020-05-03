@@ -86,7 +86,10 @@ def main():
 		config['disc_full_layers'] = tune.grid_search([[200], [400,200], [800,400,200], [800,800,800]])
 		#config['cuda'] = False
 		# TODO: Log accuracy results within neural network.
-		analysis = tune.run(do_once, config=config, resources_per_trial={ "cpu": 4, "gpu": 0.0})
+		if not config['cuda']:
+			analysis = tune.run(do_once, config=config, resources_per_trial={ "cpu": 2, "gpu": 0.0})
+		else:
+			analysis = tune.run(do_once, config=config, resources_per_trial={ "cpu": 1, "gpu": 0.5})
 # Launch a training run, with optional hyperparameter sweeping.
 if __name__ == "__main__":
 	main()

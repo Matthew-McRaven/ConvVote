@@ -229,6 +229,9 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, do_
 		# See: https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels
 		noised_labels = abs(real_labels - noise)
 
+		real_labels = utils.cuda(images, config)
+		noised_labels = utils.cuda(noised_labels, config)
+		images = utils.cuda(images, config)
 		# Feed all data through the discriminator.
 		out_labels = discriminator(len(images), images).view(-1)
 
