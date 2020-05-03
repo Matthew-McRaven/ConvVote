@@ -66,17 +66,17 @@ def raster_images(images):
 config = CNNScan.Mark.Settings.generate_default_settings()
 
 
-config['epochs'] = 400
+config['epochs'] = 100
 config['batch_size'] = 5
 
 data = CNNScan.Mark.gan.get_marks_dataset(CNNScan.Mark)
 loader = torch.utils.data.DataLoader(data, batch_size=config['batch_size'], shuffle=True)
 
-encoder = CNNScan.Mark.gan.AutoEncoder(config)
+encoder = CNNScan.Mark.encoder.AutoEncoder(config)
 
 print(encoder)
 
-CNNScan.Mark.gan.train_autoencoder(config, encoder, loader, loader)
+CNNScan.Mark.encoder.train_autoencoder(config, encoder, loader, loader)
 
 count=4
 

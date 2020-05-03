@@ -2,6 +2,7 @@
 from .Marks import *
 from .__main__ import *
 from . import gan
+from . import encoder
 
 from PIL import Image
 from PIL import ImageFilter
