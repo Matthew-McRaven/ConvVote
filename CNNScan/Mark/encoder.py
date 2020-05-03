@@ -24,7 +24,7 @@ class Encoder(nn.Module):
 		self.config = config
 		self.input_size = input_size
 		self.output_size = config['gen_seed_image']
-
+		self.enable = False
 		# Create a convolutional network from the settings file definition
 		conv_layers = config['enc_conv_layers']
 		nlo_name = config['nlo']
@@ -48,9 +48,11 @@ class Encoder(nn.Module):
 
 	def forward(self, images):
 		output = images.view(len(images), self.input_size[0], self.input_size[1], self.input_size[2])
-		output = self.conv_layers(images)
+		if self.enable:
+			output = self.conv_layers(images)
 		output = output.view(len(images), -1)
-		output = self.linear(output)
+		if self.enable:
+			output = self.linear(output)
 		return output
 
 class AutoEncoder(nn.Module):

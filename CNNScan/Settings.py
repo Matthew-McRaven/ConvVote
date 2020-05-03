@@ -62,6 +62,7 @@ def create_conv_layers(conv_layers, input_dimensions, in_channels, nlo_name, dro
 	# Construct convolutional layers.
 	H = input_dimensions[0]
 	W = input_dimensions[1]
+	output_layer_size = 0
 	conv_list = []
 	non_linear = get_nonlinear(nlo_name)
 	in_channels = in_channels

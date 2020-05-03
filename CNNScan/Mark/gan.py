@@ -115,7 +115,6 @@ class MarkGenerator(nn.Module):
 		nlo_name = config['nlo']
 		tup = CNNScan.Settings.create_conv_layers(conv_layers, self.seed_image_size[1:], self.seed_image_size[0], nlo_name, config['dropout'], True)
 		conv_list, self.output_layer_size, _, _, _ = tup
-
 		
 		last_size = input_size
 		layer_list =[]
