@@ -1,23 +1,21 @@
-import time, os, sys, random, datetime
 import argparse
-import numpy as np
-import matplotlib.pyplot as plt
 import collections
-import typing
-import importlib
-import pathlib
 
-from tabulate import tabulate
 import torch
 import torch.nn as nn
 import torchvision
 from torchvision import datasets, transforms
-import PIL
-from PIL import Image
+import numpy as np
 
 import CNNScan.Settings
 import CNNScan.utils as utils
 import CNNScan.Mark.gan
+
+"""
+This class acts as the encodee stage of an auto-encoder.
+It can be configured with a number fully-connected layers and convolutional layers.
+It may help debug the generator portion of a GAN, since the generator is basically a decoder.
+"""
 class Encoder(nn.Module):
 	def __init__(self, config, input_size, output_size):
 		super(Encoder, self).__init__()
@@ -52,6 +50,10 @@ class Encoder(nn.Module):
 		output = self.linear(output)
 		return output
 
+"""
+This class combines an encoder with a GAN generator to form a full auto-encoder.
+The goal of the network is to produce outputs that are identical to the inputs.
+"""
 class AutoEncoder(nn.Module):
 	def __init__(self, config):
 		super(AutoEncoder, self).__init__()
@@ -64,6 +66,7 @@ class AutoEncoder(nn.Module):
 		output = self.decoder(output)
 		return output
 
+# Given a data loader and a model, iterate over the the loader for a single epoch.
 def iterate_loader_once(config, model, loader, criterion, do_train=False, optimizer=None):
 		batch_loss, batch_count = 0, 0
 		for images, _ in loader:
@@ -73,12 +76,13 @@ def iterate_loader_once(config, model, loader, criterion, do_train=False, optimi
 
 			loss = criterion(out_images, images)
 				
+			# If in training mode, must update the model to reduce loss.
 			if do_train:
 				loss.backward()
 				optimizer.step()
 
-			batch_count+=len(images)
-			batch_loss += loss.data.item()
+			batch_count += len(images)
+			batch_loss  += loss.data.item()
 
 			# Free allocated memory to prevent crashes.
 			del loss
@@ -89,6 +93,7 @@ def iterate_loader_once(config, model, loader, criterion, do_train=False, optimi
 
 		return (batch_count, batch_loss)
 
+# Given training and testing data, train the model for all epochs and report statistics.
 def train_autoencoder(config, model, train_loader, test_loader):
 	model = utils.cuda(model, config)	
 	# Choose a criterion.
@@ -103,6 +108,9 @@ def train_autoencoder(config, model, train_loader, test_loader):
 		optimizer.zero_grad()
 		count, loss = iterate_loader_once(config, model, train_loader, criterion, True, optimizer)
 		print(f"Saw {count} images in epoch {epoch} with loss of {loss}.")
+
 		# Perform evaluation.
 		with torch.no_grad():
 			pass
+
+	return model

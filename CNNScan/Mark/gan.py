@@ -1,18 +1,15 @@
-import time, os, sys, random, datetime
-import argparse
-import numpy as np
-import matplotlib.pyplot as plt
-import collections
-import typing
-import importlib
-import pathlib
 
+import argparse
+import collections
+import os
+import importlib
+import random
+
+import numpy as np
 from tabulate import tabulate
 import torch
 import torch.nn as nn
 import torchvision
-from torchvision import datasets, transforms
-import PIL
 from PIL import Image
 
 import CNNScan.Settings
@@ -180,6 +177,8 @@ def train_once(config, generator, discriminator, train_loader, test_loader):
 		#square_print(marked_square,"Marked v. Unmarked")
 		print(f"Loss is {disc_loss}, {gen_loss}")
 		print("\n")
+		
+	return generator, discriminator
 
 
 def generate_images(generator, count, config):
@@ -251,9 +250,6 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, do_
 		if do_train:
 			loss.backward()
 			optimizer.step()
-
-			#discriminator.train(True)
-			#generator.train(True)
 
 		# Compute true +'ve -'ve, false +'ve -'ve rates for identification of
 		# whether it is marked or unmarked as well as if it is real or generated.

@@ -1,19 +1,15 @@
-import tempfile
-import os
 import pickle
 import importlib
 
 import torch
 import torchvision
 import numpy as np
-from PIL import Image
-from PIL import ImageFilter
-import matplotlib.pyplot as plt 
-import matplotlib
 
 from CNNScan.Mark import gan
 import CNNScan.Mark.Settings
 
+# Ray Tune needs an entry point that is a function.
+# This function must train the neural network for some number of epochs, as well as saving any output images from the neural network.
 def do_once(config):
 	transforms = torchvision.transforms.Compose([
 												#torchvision.transforms.Grayscale(),
@@ -36,9 +32,12 @@ def do_once(config):
 	with open(my_dir+"/settings.p", "wb") as my_file:
 		pickle.dump(config, my_file)
 	# Must use this line to prevent crashing.
+	# Matplotlib does not like being opened/closed from a background thread without this enabled.
+	# 	See https://github.com/matplotlib/matplotlib/issues/14304#issuecomment-545717061
 	matplotlib.use('agg')
 	CNNScan.Mark.raster_images(images, my_dir)
 
+	# Pytorch seems to leak memory when items are not explicitly deleted.
 	del disc_model
 	del gen_model
 	del data
@@ -46,36 +45,34 @@ def do_once(config):
 	del images
 	torch.cuda.empty_cache()
 
+# Entry point for ray tune host process that initializes Ray environment and sets tuning samples.
 def main():
 	config = CNNScan.Mark.Settings.generate_default_settings()
 	if importlib.util.find_spec("ray") is None:
-		raise NotImplementedError("Must install raytune.")
+		raise NotImplementedError("Must install raytune to perform sweep.")
 	else:
 		from ray import tune
 		import ray
 		ray.init()
-		config['epochs'] = tune.grid_search([0])
+		config['epochs'] = tune.grid_search([100, 200, 400])
 		config['learning_rate'] = tune.grid_search([0.0001, 0.00001, 0.000001])
 		config['gen_seed_len'] = tune.grid_search([10, 50, 100, 200])
+		# Create multiple convolutional layer configurations for the discriminator
 		layers = []
 		layers.append([
-			# Make sure the kernel size is SMALLER than the feature being recognized.
 			CNNScan.Settings.conv_def(2, 4, 1, 0, 1, False),
 			CNNScan.Settings.pool_def(4)
 		])
 		layers.append([
-			# Make sure the kernel size is SMALLER than the feature being recognized.
 			CNNScan.Settings.conv_def(2, 16, 1, 0, 1, False),
 			CNNScan.Settings.pool_def(2)
 		])
 		layers.append([
-			# Make sure the kernel size is SMALLER than the feature being recognized.
 			CNNScan.Settings.conv_def(4, 16, 1, 0, 1, False),
 			CNNScan.Settings.conv_def(4, 16, 1, 0, 1, True),
 			CNNScan.Settings.pool_def(4)
 		])
 		layers.append([
-			# Make sure the kernel size is SMALLER than the feature being recognized.
 			CNNScan.Settings.conv_def(4, 32, 1, 0, 1, False),
 			CNNScan.Settings.conv_def(4, 32, 1, 0, 1, True),
 			CNNScan.Settings.pool_def(4),
@@ -84,12 +81,12 @@ def main():
 		])
 		config['disc_conv_layers'] = tune.grid_search(layers)
 		config['disc_full_layers'] = tune.grid_search([[200], [400,200], [800,400,200], [800,800,800]])
-		#config['cuda'] = False
 		# TODO: Log accuracy results within neural network.
 		if not config['cuda']:
 			analysis = tune.run(do_once, config=config, resources_per_trial={ "cpu": 2, "gpu": 0.0})
 		else:
 			analysis = tune.run(do_once, config=config, resources_per_trial={ "cpu": 1, "gpu": 0.5})
-# Launch a training run, with optional hyperparameter sweeping.
+
+
 if __name__ == "__main__":
 	main()

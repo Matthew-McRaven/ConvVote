@@ -29,7 +29,7 @@ def as_hist_L(img, plt):
 	plt.set_xlim([-10,255])
 	return plt
 
-def raster_images(images, path, show_images=False):
+def raster_images(images, path, base_name="file", show_images=False, dpi=400):
 	# Convert a 2 channel tensor to an image.
 	asLA= torchvision.transforms.Compose([
 		torchvision.transforms.Normalize((-1/127.5,),(1/127.5,)),
@@ -89,7 +89,7 @@ def raster_images(images, path, show_images=False):
 		for ax in fig.get_axes():
 			ax.label_outer()
 
-		fig.savefig(path+f"/file{i}.png", dpi=400)
+		fig.savefig(path+f"/{base_name}{i}.png", dpi=dpi)
 
 		if show_images:
-			Image.open(path+f"/file{i}.png").show()
+			Image.open(path+f"/{base_name}{i}.png").show()
