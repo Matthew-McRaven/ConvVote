@@ -34,7 +34,7 @@ def get_marks_dataset(package, transforms=None, subpath="only_marks"):
 	# Must supply a custom loader function to pytorch dataset, otherwise it opens images in incorrect mode,
 	# which makes all the pixels turn black.
 	def loader(path):
-		image = Image.open(path).convert('LA')
+		image = Image.open(path)#.convert('LA')
 		#image.show()
 		return image
 

@@ -4,14 +4,14 @@ def generate_default_settings():
 	ret['nlo']					= "lrelu"
 	ret['learning_rate'] 		= 0.0002
 	# Size of mark images, mark outputs
-	ret['im_size']				= (2, 128, 128)
+	ret['im_size']				= (4, 128, 128)
 	ret['criterion'] 			= 'mse-sum'
 	# How many random values should be used to seed the generator?
-	ret['gen_seed_len']			= 2*128*128
+	ret['gen_seed_len']			= 4*128*128
 	# How many embedding entires should be used to encode class labels?
 	ret['gen_full_layers']		= []
 	# How should the CNN be seeded? (channels x H * W)
-	ret['gen_seed_image']		= (2, 128, 128)
+	ret['gen_seed_image']		= (4, 128, 128)
 	ret['gen_conv_layers'] 	= [
 		# Make sure the kernel size is SMALLER than the feature being recognized.
 		# CNNScan.Settings.conv_transpose_def(3, 64,  2, 1, 1, 1, True),
