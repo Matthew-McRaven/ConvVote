@@ -223,12 +223,12 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, do_
 		#toImage= torchvision.transforms.Compose([torchvision.transforms.ToPILImage(mode=None)])
 
 		# Create random doubles between [0,.1]
-		noise = 0.3*torch.tensor(np.random.random(size=(len(real_labels),)) ,dtype=torch.float) -.3
+		noise = 0.1*torch.tensor(np.random.random(size=(len(real_labels),)) ,dtype=torch.float) -.05
 		# Add random noise to labels. Abs will "flip" the negative numbers about the origin.
 		# See: https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels
 		noised_labels = abs(real_labels - noise)
 
-		real_labels = utils.cuda(images, config)
+		real_labels = utils.cuda(real_labels, config)
 		noised_labels = utils.cuda(noised_labels, config)
 		images = utils.cuda(images, config)
 		# Feed all data through the discriminator.
@@ -260,7 +260,6 @@ def iterate_loader_once(config, generator, discriminator, loader, criterion, do_
 		for i, output in enumerate(out_labels):
 			predict_real = output.item()
 			is_real = real_labels[i]
-
 			# Actual value is in first index, recorded value in second.
 			real_square[int(is_real.item())][round(predict_real)]+=1
 

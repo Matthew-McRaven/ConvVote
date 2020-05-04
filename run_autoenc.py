@@ -14,8 +14,8 @@ import CNNScan.Mark.Settings
 config = CNNScan.Mark.Settings.generate_default_settings()
 
 
-config['epochs'] = 10
-config['batch_size'] = 1
+config['epochs'] = 400
+config['batch_size'] = 5
 config['cuda'] = False 
 data = CNNScan.Mark.gan.get_marks_dataset(CNNScan.Mark)
 loader = torch.utils.data.DataLoader(data, batch_size=config['batch_size'], shuffle=True)

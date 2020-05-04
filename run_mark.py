@@ -13,7 +13,7 @@ import CNNScan.Mark.Settings
 
 config = CNNScan.Mark.Settings.generate_default_settings()
 
-config['epochs'] = 0
+config['epochs'] = 100
 config['batch_size'] = 5
 
 data = CNNScan.Mark.gan.get_marks_dataset(CNNScan.Mark)
