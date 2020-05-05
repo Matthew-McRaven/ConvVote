@@ -10,7 +10,7 @@ import numpy as np
 
 import CNNScan.Samples.Oregon
 import CNNScan.Raster
-def main(factory, **kwargs):
+def main(factory, crop_contests=False, **kwargs):
 	# Determine number of images / marking conditions
 	# Load the ballot definition
 	# Create output directory.
@@ -20,7 +20,10 @@ def main(factory, **kwargs):
 	#print(os.path.abspath(ballot.ballot_file))
 
 	for i,ballot in enumerate(factory.ballots):
-		factory.ballots[i] = CNNScan.Raster.Raster.rasterize_ballot_image(ballot, kwargs['dpi'])
+		# Skip rasterizing ballots with no ballot PDF (like randomly generated ballots)
+		if ballot.ballot_file == "":
+			continue
+		factory.ballots[i] = CNNScan.Raster.Raster.rasterize_ballot_image(ballot, kwargs['dpi'], crop_to_contests=crop_contests)
 
 	# Determine marking parameters
 	mark_db = CNNScan.Mark.MarkDatabase()
@@ -34,6 +37,7 @@ if __name__ == "__main__":
 	parser.add_argument("--outdir",help="Directory in which to store files", required=True, nargs=1)
 	parser.add_argument("--count", default=100, help="Directory in which to store files", type=int)
 	parser.add_argument("--dpi", default=400, help="DPI at which to write the ballots", type=int)
+	parser.add_argument("--crop_contests", default=False, help="Crop the contest images so that only the option rectangles remain.", action='store_true')
 	#ballot = copy.deepcopy(CNNScan.Samples.Oregon.ballot)
 	factory = CNNScan.Ballot.BallotDefinitions.BallotFactory()
 	factory.Ballot(CNNScan.Samples.Oregon.contests, ballot_file=CNNScan.Samples.Oregon.ballot_file)

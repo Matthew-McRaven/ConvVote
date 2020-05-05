@@ -42,7 +42,7 @@ def fix_rect(rect, width, height, page, old_width=1, old_height=1, width_offset=
 
 # Load the PDF associated with a ballot template, convert the PDF to a PIL.Image,
 # convert bounding rectangles from %'s to pixels, and store each of the page's images in ballot.pages.
-def rasterize_ballot_image(ballot : BallotDefinitions.BallotFactory, crop_to_contests=False, dpi:int = 400):
+def rasterize_ballot_image(ballot : BallotDefinitions.BallotFactory, dpi, crop_to_contests=False):
 	# Establish pre-conditions that ballots have relative coordinates.
 	# print("ballot",ballot,"\ndirectory",directory)
 	assert isinstance(ballot, BallotDefinitions.Ballot)

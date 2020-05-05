@@ -79,7 +79,7 @@ class MixedBallotDataSet(Dataset):
 	# Make the dataset behave as if it only contained ballots for "which"
 	# Len, [] operations will only factor in selected ballot.
 	def freeze_ballot_definiton_index(self, which):
-		assert which >= 0 and which<len(self.ballot_factory)
+		assert which is None or which >= 0 and which<len(self.ballot_factory)
 		self.fixed_ballot = which
 
 	# Querry for a ballot definition given only a ballot id
@@ -124,7 +124,7 @@ class MixedBallotDataSet(Dataset):
 	# Return the length of the active ballot, or return the total number of cached ballots.
 	def __len__(self):
 		if self.fixed_ballot is None:
-			return np.sum(self.ballot_count)
+			return np.sum(self.ballot_count, dtype=np.intc)
 		else:
 			return self.ballot_count[self.fixed_ballot]
 

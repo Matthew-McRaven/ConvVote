@@ -211,8 +211,8 @@ c24 = bd.Contest(24, "c24", "", c24_opt, to_pos(.0310, .3423, .3185, .4901,0), "
 contests.append(c24)
 ballot_file="CNNScan/Samples/Oregon/or2018ballot.pdf"
 # Provide interface to access ballot.
-def get_sample_ballot(factory):
+def get_sample_ballot(factory, dpi=40):
 	local_ballot = factory.Ballot(contests=contests, ballot_file=ballot_file)
-	return CNNScan.Raster.Raster.rasterize_ballot_image(local_ballot, 100)
+	return CNNScan.Raster.Raster.rasterize_ballot_image(local_ballot, dpi)
 
 del bd

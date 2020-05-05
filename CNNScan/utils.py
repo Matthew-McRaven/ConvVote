@@ -17,6 +17,15 @@ def resize_convolution(x, kernel_size, dilation, stride, padding):
     x = int(1 + (x + 2*padding - dilation * (kernel_size - 1) - 1)/stride)
     return x
 
+# Determine the size of a dimension after applying a transposed convolution layer.
+def resize_transpose_convolution(x, kernel_size, dilation, stride, padding, output_padding):
+	t1 = (x-1)*stride
+	t2 = 2*padding
+	t3 = dilation*(kernel_size-1)
+	t4 = output_padding
+	return t1 - t2 + t3 + t4 + 1
+
+	
 # Determine if a number is a power of 2 or not and the number is non-zero.
 def is_power2(number):
 	return number > 0 and math.ceil(math.log(number, 2)) == math.floor(math.log(number, 2)) 

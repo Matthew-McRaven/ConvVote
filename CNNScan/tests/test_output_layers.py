@@ -5,7 +5,7 @@ import torch
 import torchvision
 import numpy as np
 
-from CNNScan.Reco import Driver, Settings
+from CNNScan.Reco import Settings
 import CNNScan.Samples
 
 # Our neural net architecture has two output modes.
@@ -18,12 +18,17 @@ class TestOutputLabeling(unittest.TestCase):
 
 		self.config = Settings.generate_default_settings()
 		self.config['epochs'] = 1
+		# Reduce size of NN to speed up testing.
+		self.config['recog_full_layers'] = [10]
+		self.config['recog_conv_layers'] 	= [
+		CNNScan.Settings.conv_def(4, 1, 4, 0, 4, False),
+		]
 		self.markdb = CNNScan.Mark.MarkDatabase()
 		self.markdb.insert_mark(CNNScan.Mark.BoxMark())
 
 		# Create fake data that can be used.
 		self.ballot_factory = CNNScan.Ballot.BallotDefinitions.BallotFactory()
-		_ = CNNScan.Samples.Random.get_sample_ballot(self.ballot_factory)
+		_ = CNNScan.Samples.Random.get_sample_ballot(self.ballot_factory, dpi=40)
 
 		# Create faked marked ballots from ballot factories.
 		self.data = CNNScan.Reco.Load.GeneratingDataSet(self.ballot_factory, self.markdb, 2)
@@ -35,16 +40,16 @@ class TestOutputLabeling(unittest.TestCase):
 		self.config['unique_outputs'] = True
 
 		# Attempts to train model.
-		model = CNNScan.Reco.ImgRec.BallotRecognizer(self.config, self.ballot_factory)
-		model = CNNScan.Reco.ImgRec.train_election(model, self.config, self.ballot_factory, self.load, self.load)
+		model = CNNScan.Reco.ContestRec.BallotRecognizer(self.config, self.ballot_factory)
+		model = CNNScan.Reco.ContestRec.train_election(model, self.config, self.ballot_factory, self.load, self.load)
 
 	def test_pooled_outputs(self):
 		# Configure the NN to have a pooled output layer shared between all (ballot, contest) pairs.
 		self.config['unique_outputs'] = False
 
 		# Attempts to train model.
-		model = CNNScan.Reco.ImgRec.BallotRecognizer(self.config, self.ballot_factory)
-		model = CNNScan.Reco.ImgRec.train_election(model, self.config, self.ballot_factory, self.load, self.load)
+		model = CNNScan.Reco.ContestRec.BallotRecognizer(self.config, self.ballot_factory)
+		model = CNNScan.Reco.ContestRec.train_election(model, self.config, self.ballot_factory, self.load, self.load)
 
 
 if __name__ == '__main__':
