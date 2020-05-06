@@ -114,7 +114,7 @@ The goal of our project is to train a contest evaluation [Convolutional Neural N
 
 ## Recognizing Synthetic ballots.
 The overall archiecture of the contest evaluation neural network is shown below.
-![NN architecture for ballot recognition](/docs/conv-net.pdf)
+![NN architecture for ballot recognition](/docs/conv-net.png)
 
 Multiple differnt ballot types may be fed into the neural network at once.
 Please note that as the number of ballot types evaluated by the network increase, the size of the embedding tables and number of neurons will likely need to increase.
