@@ -1,0 +1,55 @@
+.form {
+	font-family: sans-serif;
+	/*border: 2px solid red;*/
+}
+
+.forms {
+	display: block;
+}
+
+.content {
+	display: inline-block;
+}
+
+.optionsbox {
+	width: 45%;
+	float: right;
+	/*position: fixed;*/
+	text-align: center;
+}
+
+.contestbox {
+	width: 45%;
+	/*left: 0px;*/
+	float: left;
+	/*align-content: center;*/
+}
+
+.image-display {
+	margin-top: 10px;
+	align-content: center;
+	display: inline;
+	margin-right: 10px;
+	margin-left: 10px;
+	position: relative;
+}
+.marker {
+	position: absolute;
+}
+
+.image-display img {
+	max-width: 80%;
+}
+
+.image-wrapper {
+	display: inline;
+}
+
+.redclass {
+	color: red;
+	font-size: 20px;
+}
+
+.outer {
+	display: inline;
+}
