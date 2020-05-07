@@ -24,6 +24,7 @@ class ContestData(db.Model):
 	leftY = db.Column(db.Integer,default=0)
 	rightX =  db.Column(db.Integer,default=0)
 	rightY =  db.Column(db.Integer,default=0)
+	ballot = db.Column(db.Integer,default=0)
 	page = db.Column(db.Integer,default=1)
 	name = db.Column(db.String,default=None)
 
@@ -70,16 +71,17 @@ def index():
 
 		for row in rows:
 			if row.name:
-				file.write(f"C,{row.id},{row.name},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.page},{page_dims[row.page-1][0]},{page_dims[row.page-1][1]}\n")
+				file.write(f"C,{row.id},{row.name},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.page},{page_dims[row.page-1][0]},{page_dims[row.page-1][1]},{row.ballot}\n")
 			else:
-				file.write(f"C,{row.id},Contest{row.id},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.page},{page_dims[row.page-1][0]},{page_dims[row.page-1][1]}\n")
+				file.write(f"C,{row.id},Contest{row.id},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.page},{page_dims[row.page-1][0]},{page_dims[row.page-1][1]},{row.ballot}\n")
 		rows = db.session.query(OptionData).all()
 		# file = open(request.form['file-name'],"w+")
 		for row in rows:
+			row_ballot = ContestData.query.get(row.contest).ballot
 			if row.name:
-				file.write(f"O,{row.id},{row.name},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.contest}\n")
+				file.write(f"O,{row.id},{row.name},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.contest},{row_ballot}\n")
 			else:
-				file.write(f"O,{row.id},Option{row.id},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.contest}\n")
+				file.write(f"O,{row.id},Option{row.id},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.contest},{row_ballot}\n")
 		file.close()
 	# redirect to homepage
 
@@ -138,7 +140,7 @@ def contest():
 	
 	if request.method == 'POST' :
 		data = request.form
-		new_contest = ContestData(leftX=data['x-click-l'], leftY = data['y-click-l'], rightX = data['x-click-r'], rightY = data['y-click-r'],page=data['pageNumber'],name=data['contest-name'])
+		new_contest = ContestData(leftX=data['x-click-l'], leftY = data['y-click-l'], rightX = data['x-click-r'], rightY = data['y-click-r'],page=data['pageNumber'],name=data['contest-name'],ballot=data['ballotNumber'])
 
 		try :
 			db.session.add(new_contest)
@@ -177,9 +179,9 @@ def contest():
 			# image_file = url_for('static',filename=f"images/{image_file}")
 			image_file = f"{image_dir}/{image_file}"
 			images = convert_from_path(image_file, output_folder=image_dir,output_file="tmp",fmt='pdf')
-			print("**** image file",image_file)
+			# print("**** image file",image_file)
 			temp = os.listdir(image_dir)
-			print("**** temp files: ",temp)
+			# print("**** temp files: ",temp)
 			for p in temp:
 				print("p: ",p)
 				if "tmp" in p:
