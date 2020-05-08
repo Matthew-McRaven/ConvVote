@@ -26,7 +26,8 @@ class ContestData(db.Model):
 	ballot = db.Column(db.Integer,default=1)
 	page = db.Column(db.Integer,default=1)
 	name = db.Column(db.String,default=None)
-
+	pageW = db.Column(db.Integer,default=0)
+	pageH = db.Column(db.Integer,default=0)
 	def __repr__(self):
 		return '<Contest %r>' % self.id
 
@@ -51,22 +52,13 @@ def index():
 		rows = db.session.query(ContestData).all()
 		file = open(request.form['file-name'],"w+")
 		image_dir= "."+url_for('static',filename="images")
-		page_dims=[]
-		dirs=[]
-		for path in os.listdir(image_dir):
-			if "tmp" in path:
-				dirs.append(path)
-		dirs.sort()
-		for path in dirs:
-			img = Image.open("static/images/"+path)
-			page_dims.append(img.size)
 
 		for row in rows:
-			w,h = page_dims[(row.page-1)]
+
 			if row.name:
-				file.write(f"C,{row.id},{row.name},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.page},{w},{h},{row.ballot}\n")
+				file.write(f"C,{row.id},{row.name},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.page},{row.pageW},{row.pageH},{row.ballot}\n")
 			else:
-				file.write(f"C,{row.id},Contest{row.id},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.page},{w},{h},{row.ballot}\n")
+				file.write(f"C,{row.id},Contest{row.id},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.page},{row.pageW},{row.pageH},{row.ballot}\n")
 		rows = db.session.query(OptionData).all()
 		# file = open(request.form['file-name'],"w+")
 		for row in rows:
@@ -132,7 +124,11 @@ def contest():
 	
 	if request.method == 'POST' :
 		data = request.form
-		new_contest = ContestData(leftX=data['x-click-l'], leftY = data['y-click-l'], rightX = data['x-click-r'], rightY = data['y-click-r'],page=data['pageNumber'],name=data['contest-name'],ballot=data['ballotNumber'])
+		sizeString = data['size']
+
+		sizes=sizeString.split(",")
+
+		new_contest = ContestData(pageW=(sizes[0]), pageH=(sizes[1]),leftX=data['x-click-l'], leftY = data['y-click-l'], rightX = data['x-click-r'], rightY = data['y-click-r'],page=data['pageNumber'],name=data['contest-name'],ballot=data['ballotNumber'])
 
 		try :
 			db.session.add(new_contest)
@@ -144,7 +140,7 @@ def contest():
 				if "tmp" in p:
 					paths.append(f"{data['image-dir']}/{p}")
 			paths.sort()
-			return render_template('markup.html', paths=paths, dir=data['image-dir'])
+			return render_template('markup.html', paths=paths,size=sizeString, dir=data['image-dir'])
 		except:
 			return "there was an error"
 
@@ -153,7 +149,7 @@ def contest():
 		# print("---->filepaths",filepaths)
 		image_dir= "."+url_for('static',filename="images")
 		paths=[]
-
+		size=None
 		if not request.args.get('use-existing-files'):
 
 			if not request.args.get('imagefile'):
@@ -170,16 +166,21 @@ def contest():
 					os.remove("."+url_for('static',filename=f"images/{p}"))
 					p_i = p[:-3]+"jpg"
 					i.save("./static/images/"+p_i)
-					paths.append("."+url_for('static',filename=f"images/{p_i}"))
+					newpath = "."+url_for('static',filename=f"images/{p_i}")
+					size=i.size
+					paths.append(newpath)
 			
 		else :
 			temp = os.listdir(image_dir)
 			for p in temp:
 				if "tmp" in p:
 					paths.append("."+url_for('static',filename=f"images/{p}"))
+					img = Image.open("."+url_for('static',filename=f"images/{p}"))
+					size=img.size
 
 		paths.sort()
-		return render_template('markup.html', paths=paths,dir=image_dir)
+		w,h = size
+		return render_template('markup.html', paths=paths,size=f"{w},{h}",dir=image_dir)
 
 @app.route('/option', methods=['GET','POST'])
 def option():
