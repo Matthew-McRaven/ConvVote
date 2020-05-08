@@ -23,6 +23,7 @@ class ContestData(db.Model):
 	leftY = db.Column(db.Integer,default=0)
 	rightX =  db.Column(db.Integer,default=0)
 	rightY =  db.Column(db.Integer,default=0)
+	ballot = db.Column(db.Integer,default=1)
 	page = db.Column(db.Integer,default=1)
 	name = db.Column(db.String,default=None)
 
@@ -59,13 +60,13 @@ def index():
 		for path in dirs:
 			img = Image.open("static/images/"+path)
 			page_dims.append(img.size)
-		print("dimensions",page_dims,dirs)
 
 		for row in rows:
+			w,h = page_dims[row.page-1]
 			if row.name:
-				file.write(f"C,{row.id},{row.name},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.page},{page_dims[row.page-1]}\n")
+				file.write(f"C,{row.id},{row.name},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.page},{w},{h},{row.ballot}\n")
 			else:
-				file.write(f"C,{row.id},Contest{row.id},{row.leftX},{row.leftY} {row.rightX},{row.rightY},{row.page},{page_dims[row.page-1]}\n")
+				file.write(f"C,{row.id},Contest{row.id},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.page},{w},{h},{row.ballot}\n")
 		rows = db.session.query(OptionData).all()
 		# file = open(request.form['file-name'],"w+")
 		for row in rows:
@@ -131,7 +132,7 @@ def contest():
 	
 	if request.method == 'POST' :
 		data = request.form
-		new_contest = ContestData(leftX=data['x-click-l'], leftY = data['y-click-l'], rightX = data['x-click-r'], rightY = data['y-click-r'],page=data['pageNumber'],name=data['contest-name'])
+		new_contest = ContestData(leftX=data['x-click-l'], leftY = data['y-click-l'], rightX = data['x-click-r'], rightY = data['y-click-r'],page=data['pageNumber'],name=data['contest-name'],ballot=data['ballotNumber'])
 
 		try :
 			db.session.add(new_contest)

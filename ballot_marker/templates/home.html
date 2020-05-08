@@ -19,6 +19,7 @@
                 <th>X2</th>
                 <th>Y2</th>
                 <th>Page</th>
+                <th>Ballot</th>
             </tr>
             {% for contest in contests %}
                 <tr>
@@ -28,6 +29,7 @@
                     <td>{{ contest.rightX }}</td>
                     <td>{{ contest.rightY }}</td>
                     <td>{{ contest.page }}</td>
+                    <td>{{ contest.ballot }}</td>
                     <td>
                         <a href="/contest/delete/{{contest.id}}">Delete</a>
                     </td>

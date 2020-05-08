@@ -22,6 +22,10 @@
             {% if contest.name %}{{contest.name}}{% else %}Contest{{contest.id}}{% endif %}<input type="radio" name="contest-id" value="{{ contest.id }}" required/>
         {% endfor %}
         <br> <input type="hidden" name="image-dir" value="{{ dir }}"/>
+        <input type="hidden" name="x-l-dot" id="x-l-dot" value=0/>
+        <input type="hidden" name="y-l-dot" id="y-l-dot" value=0/>
+        <input type="hidden" name="x-r-dot" id="x-r-dot" value=0/>
+        <input type="hidden" name="y-r-dot" id="y-r-dot" value=0/>
         <input type="submit" value="Add Option">
     </form>
 
@@ -45,17 +49,32 @@
 <script>
 $(document).ready(function(){ 
     $("#image-container").on('click', function (ev) {
-        if($("marker").length < 3){
-            $("body").append(
-                $('<div class="marker"></div>').css({
+        if($("#x-click-l").val()>0 && $("#x-click-r").val()>0 && $("#y-click-l").val()>0 && $("#y-click-r").val()>0 ){
+            var rect = ev.target.getBoundingClientRect();
+            if($(".marker").length > 0){
+                // $(".marker").remove();
+                $('.marker').css({
                   position: 'absolute',
-                  top: ev.pageY + 'px',
-                  left: ev.pageX + 'px',
-                  width: '4px',
-                  height: '4px',
-                  background: 'red'
-                })              
-              );
+                  top: $('#y-l-dot').val() + 'px',
+                  left: $('#x-l-dot').val() + 'px',
+                  width: ($("#x-click-r").val() - $("#x-click-l").val())*rect.width +'px',
+                  height: ($("#y-click-r").val() - $("#y-click-l").val())*rect.height +'px'
+                });
+            } else {
+                var rect = ev.target.getBoundingClientRect();
+                $("body").append(
+                    $('<div class="marker"></div>').css({
+                      position: 'absolute',
+                      top: $('#y-l-dot').val() + 'px',
+                      left: $('#x-l-dot').val() + 'px',
+
+                      width: ($("#x-click-r").val() - $("#x-click-l").val())*rect.width +'px',
+                      height: ($("#y-click-r").val() - $("#y-click-l").val())*rect.height +'px',
+                      'pointer-events': 'none',
+                      border: 'solid 1px red'
+                    })              
+                  );
+            }
         }
     });
 });
@@ -64,14 +83,10 @@ document.querySelectorAll('.image-display').forEach(item => {
     item.addEventListener('mousedown', function (e) {
         if (document.getElementById("left").checked) {
             var rect = e.target.getBoundingClientRect();
-            // console.log(e.target)
-            // console.log(rect.height)
-            // console.log(rect.width)
-            // console.log(rect.width/2)
             document.getElementById('x-click-l').value = ((e.x - rect.left)/rect.width).toFixed(4); 
-            // document.getElementById('x-click-l').value = e.x
-            // document.getElementById('y-click-l').value = e.y
             document.getElementById('y-click-l').value = ((e.y - rect.top)/rect.height).toFixed(4);
+            document.getElementById('x-l-dot').value = e.pageX;
+            document.getElementById('y-l-dot').value = e.pageY;
         }
     });
 });
@@ -81,8 +96,8 @@ document.querySelectorAll('.image-display').forEach(item => {
                 var rect = e.target.getBoundingClientRect();
                 console.log(e.target)
                 document.getElementById('x-click-r').value = ((e.x - rect.left)/rect.width).toFixed(4);
-                // document.getElementById('x-click-r').value = e.x
-                // document.getElementById('y-click-r').value = e.y
+                document.getElementById('x-r-dot').value = e.pageX;
+                document.getElementById('y-r-dot').value = e.pageY;
                 document.getElementById('y-click-r').value = ((e.y - rect.top)/rect.height).toFixed(4);
             }
     });
