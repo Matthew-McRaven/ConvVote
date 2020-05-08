@@ -1,3 +1,5 @@
+# this code was derived from a medium article:
+# https://github.com/tkshnkmr/frcnn_medium_sample
 import os
 import torch
 import torch.utils.data

@@ -1,32 +1,27 @@
 import os, sys
 from PIL import Image, ImageDraw
-import argparse, json
+import json
 
 if __name__ == "__main__":
-	parser = argparse.ArgumentParser()
-	parser.add_argument("--input", required=True) 		##	input file
-	parser.add_argument("--directory", required=True) 	##	directory with image files of ballot tmp____.jpg
-														##	one for each page
-	parser.add_argument("--dest1", required=False) 		##	where to save contest images
-	parser.add_argument("--dest2", required=False)
-	parser.add_argument("--coco1", required=False) 		##	name of coco file
-	parser.add_argument("--coco2", required=False)
-	parser.add_argument("--show", required=False) 		##	show an image?
-	args = parser.parse_args()
+
+	training="my_data/training.txt"
+	directory="my_data/ballots"
+	dest1="my_data/pages"
+	dest2="my_data/contests"
+	coco1="contests_coco.json"
+	coco2="options_coco.json"
 
 	img_files = {}
 	subs=[]
-	for f in os.listdir(args.directory):
-		if os.path.isdir(args.directory+"/"+f):
+	for f in os.listdir(directory):
+		if os.path.isdir(directory+"/"+f):
 			subs.append(f)
 	subs.sort()
 	print("subs ",subs)
-	g = input("pause")
 	for f in subs:
 		print("directory: ",f)
-		print(os.listdir(args.directory+"/"+f))
 		tmplist=[]
-		for g in os.listdir(args.directory+"/"+f) :
+		for g in os.listdir(directory+"/"+f) :
 			if "jpg" in g:
 				tmplist.append(g)
 		tmplist.sort()
@@ -34,9 +29,9 @@ if __name__ == "__main__":
 	print("image files in directories",img_files)
 	# img_files.sort() # images of ballot pages
 
-	print("reading from",args.input)
+	print("reading from",training)
 
-	rawtext= open(args.input,"r")
+	rawtext= open(training,"r")
 	lines = rawtext.readlines()
 	print("number of lines",len(lines))
 
@@ -93,7 +88,7 @@ if __name__ == "__main__":
 		tmp=[]
 		print(f"images in subdir {sub}: {img_files[sub]}")
 		for imgf in img_files[sub]:
-			img = Image.open(args.directory+"/"+sub+"/"+imgf)
+			img = Image.open(directory+"/"+sub+"/"+imgf)
 			tmp.append((img,imgf))
 		imgs.append(tmp)
 	contest_imgs={}
@@ -109,21 +104,19 @@ if __name__ == "__main__":
 		print(f"shape of contest{contest['id']} {shape}")
 		print(f"contest{contest['id']} page {contest['page']}")
 		# save cropped image
-		# print(f"img = imgs[{contest['ballot']-1}][{contest['page']-1}].crop({shape})")
+		print(f"img = imgs[{contest['ballot']-1}][{contest['page']-1}].crop({shape})")
 		img, img_name = imgs[contest['ballot']-1][contest['page']-1]
 		contest_img = img.crop(shape)
 
 		new_name=f"contest{idx}.jpg"
-		if args.dest2:
-			contest_img.save(args.dest2+"/"+new_name)
+		contest_img.save(dest2+"/"+new_name)
 		contest_imgs[contest['id']]=contest_img
 		idx=idx+1
 
 		# make COCO library for Images for the CONTESTS
 		if img_name not in img_names.keys():
 			num = len(img_names.keys())
-			if args.dest1:
-				img.save(f"{args.dest1}/page{num}.jpg")
+			img.save(f"{dest1}/page{num}.jpg")
 			w,h=img.size
 			img_names[img_name] = len(img_names.keys())+1
 			tmp_dict = {}
@@ -167,7 +160,7 @@ if __name__ == "__main__":
 		tmp_dict_contest['date_captured']=""
 
 		coco_o['images'].append(tmp_dict_contest)
-	
+
 		# make COCO annotations for each option
 		for option in contest['options']:
 			tmp_dict_option={}
@@ -212,22 +205,10 @@ if __name__ == "__main__":
 	# print(coco_c)
 
 	# make COCO categories
-	if args.coco2:
-		with open(args.coco2, "w+") as outfile: 
-			json.dump(coco_o, outfile) 
-	if args.coco1:
-		with open(args.coco1, "w+") as outfile: 
-			json.dump(coco_c, outfile) 
+	with open(coco2, "w+") as outfile: 
+		json.dump(coco_o, outfile) 
+
+	with open(coco1, "w+") as outfile: 
+		json.dump(coco_c, outfile) 
 
 
-	if args.show :
-		my_img = contest_imgs[1]
-		imgdrw = ImageDraw.Draw(my_img)
-		for ann in coco_o['annotations'] :
-				
-			if ann['image_id']==1:
-				
-				imgdrw.rectangle([ann['bbox'][0],ann['bbox'][1],ann['bbox'][0]+ann['bbox'][2],ann['bbox'][1]+ann['bbox'][3]],outline="red",fill=None)
-				# my_img.show()
-
-		my_img.show()
