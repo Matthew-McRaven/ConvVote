@@ -67,12 +67,8 @@ $(document).ready(function(){
                 $("body").append(
                     $('<div class="marker"></div>').css({
                       position: 'absolute',
-                      // top: ev.pageY + 'px',
-                      // top: ($("#y-click-l").val()*rect.height+rect.top) + 'px',
-                      // left: ($("#x-click-l").val()*rect.width+rect.left)+ 'px',
                       top: $('#y-l-dot').val() + 'px',
                       left: $('#x-l-dot').val() + 'px',
-                      // left: ev.pageX + 'px',
                       width: ($("#x-click-r").val() - $("#x-click-l").val())*rect.width +'px',
                       height: ($("#y-click-r").val() - $("#y-click-l").val())*rect.height +'px',
                       'pointer-events': 'none',
@@ -101,8 +97,6 @@ $(document).ready(function(){
                     var rect = e.target.getBoundingClientRect();
                     console.log(e.target)
                     document.getElementById('x-click-r').value = ((e.x - rect.left)/rect.width).toFixed(4);
-                    // document.getElementById('x-click-r').value = e.x
-                    // document.getElementById('y-click-r').value = e.y
                     document.getElementById('y-click-r').value = ((e.y - rect.top)/rect.height).toFixed(4);
                     document.getElementById('x-r-dot').value = e.pageX;
                     document.getElementById('y-r-dot').value = e.pageY;

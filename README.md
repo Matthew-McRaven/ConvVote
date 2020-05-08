@@ -139,10 +139,10 @@ In practice, with 3 kinds of marks, in a shared configuration, we are capable of
 If training time is slow, consider adding the `--aggressive-crop` flag, which will crop contest images to only contain the option bubbles and nothing else.
 This will miss marks outside of the option boxes (such as putting a check next to a candidates name to indicate a vote), but training speed will be multiples faster with this flag enabled.
 
-Here is an invocation that creates a pickle file from a ballot annotation made by our markup tool and uses it to create 10  marked up ballot images.
+Here is an invocation that creates a pickle file from a ballot annotation made by our markup tool and uses it to create 10  marked up ballot images. The file `create_from_file.py` follows exactly the same structure as `create_marked_ballots.py`.
 
 `python save_contests.py --input or_ballot_2.txt --output or_ballot_2`
-`python create_from_file --outdir temp/mark_test --ballot or_ballot_2 --count 20` 
+`python create_from_file.py --outdir temp/mark_test --ballot or_ballot_2 --count 20` 
 
 ## Recognizing Real Ballots (WIP)
 We have not yet been able to recognize real ballots.

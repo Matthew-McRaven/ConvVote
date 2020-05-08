@@ -75,7 +75,7 @@ if __name__ == "__main__":
 
     len_dataloader = len(data_loader)
 
-    for epoch in range(args.num_epochs):
+    for epoch in range(int(args.num_epochs)):
         print(f"Epoch: {epoch+1}/{args.num_epochs}")
         start = time.time()
         contest_detector.train()

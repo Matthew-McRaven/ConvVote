@@ -62,7 +62,7 @@ def index():
 			page_dims.append(img.size)
 
 		for row in rows:
-			w,h = page_dims[row.page-1]
+			w,h = page_dims[(row.page-1)]
 			if row.name:
 				file.write(f"C,{row.id},{row.name},{row.leftX},{row.leftY},{row.rightX},{row.rightY},{row.page},{w},{h},{row.ballot}\n")
 			else:
