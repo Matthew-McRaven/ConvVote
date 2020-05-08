@@ -2,15 +2,25 @@
 Please `pip install -r requirements.txt` to make sure you have the same python environment as we do.
 
 # Finding contests on ballots
-## Annotating a Ballot by Hand
-Here we include a tutorial on how to use the ballot marking tool.
-See the script `my_script.py` for details.
+## Annotating ballots
+Use of the ballot marking tool speeds up the process of creating marked ballots. Here is an invocation that creates a pickle file from a ballot annotation made by our markup tool and uses it to create 10  marked up ballot images. The file `create_from_file.py` follows exactly the same structure as `create_marked_ballots.py`. The file `full_ballot_annotation.txt` should be created by marking up every contest and option on a ballot.
 
-## Using a Neural Net to Markup a Ballot
-TL;DR See the script *my_script.py* and download *my_pretrained_model* for an example on using our neural network to recognize contests bounding rectangles and option bounding rectangle
+`python save_contests.py --input full_ballot_annotation.txt --output or_ballot_2_pickle`
+`python create_from_file.py --outdir temp/mark_test --ballot or_ballot_2_pickle --count 20` 
+
+Future work includes creating an end-to-end pipeline for automatically detecting contests and options in the ballot images. The following is a working example of using the ballot marking tool to create training data for the FRCNN object detection model (COCO files and a directory of images) as well as a directory of evaluation contests. 
+
+	`annotations.txt` contains data for all contests on two ballots.
+	`test_ann.txt` contains data for the contests that contain options (all but 2 contests have been removed).
+
+The following lines can be executed from the `fcrnn/` directory to populate `contests/` with every contest from the ballots to evaluate after training and `../test2/contests/` with the two contests to use during training. The model should be capable of detecting option bubbles in all images in `contests/`. Evaluated images with red bounding boxes will be output to `../test2/eval/`
+
+`python make_coco.py --input ../annotation.txt --directory test/ --dest2 contests/`
+`python make_coco.py --input ../test_ann.txt --directory test/ --dest2 ../test2/contests --coco2 options_coco.json`
+`python run.py --train_data_dir ../test2/contests/ --train_coco ../test2/options_coco.json --eval_dir contests --eval_dest ../test2/eval/ --num_epochs 25`
 
 ## Built-in Annotated Ballotes
-TL;DR See CNNScan.Samples for built-in ballot definitions that may be operated on.
+See CNNScan.Samples for built-in ballot definitions that may be operated on.
 
 # Marking Ballots
 We are planning on implementing two different methods of creating marks to apply to ballots.
@@ -27,19 +37,7 @@ These marks would be applied to ballots, hopefully simulating real voters markin
 
 ### Theory of GANs
 
-GAN's consist of two separate networks.
-The first network, the generator, takes in a small number of noise values and using fully-connected and convolutional-transpose layers it creates a fixed-sized image.
-The second network, the discriminator takes in images from both the generator and from a corpus of "real" images.
-The discriminator attempts to classify if a a particular image is real or generated.
-
-Training the network is done is steps.
-For each epoch, divide the real images into `n` batches, and create an equal number of generated batches using the discriminator.
-Shuffle the order of the real and generated batches
-Batches fed through the discriminator should only contain one class of images--all images should either be all real images or all images should be generated.
-Mixing classes within batches is not recommended, since the distributions of real and generated datasets are different.
-
-If the number of batches seen mod `k + 1` (a hyperparameter usually set as 1) equals 0, then train the generator while holding the discriminator constant.
-Otherwise, train the discriminator.
+Please see our DNN paper for the theory of how the GAN works.
 
 ### Using GANs to generate Marks (WIP)
 We have created a corpus of images that look like marks that might be applied to ballots.
@@ -68,25 +66,15 @@ We discuss the poor performance of our network as well as methods for debugging 
 
 
 ### Debugging the GANs (WIP)
-Since our GAN is not producing high quality images
+Since our GAN is not producing high quality images, any of the following could be the problem:
 * Insufficient training data and few epochs. Even at 400 epochs, both networks are only presented with 24,000 images in total. NN's typically see 100k's of images if not more. For example, the MNIST dataset has 10,000 images presented each epoch compared to our 60 images.
 * Poor input normalization.  When we map pixels from [0,255] to [-1.0,+1.0], we may be creating a dataset with mean≉0 and stdev≉1.
 * Poor output normalization. Since our data is mostly black / white, using tanh to normalize outputs of the NN may mostly yield shades of gray.
 * PIL image conversion issues. We may have a conversion error between float32 outputs of the neural network and the uint8's expected by an image.
 
 
-One method of debugging a GAN is to create an [autoencoder](https://en.wikipedia.org/wiki/Autoencoder).
-An auto-encoder uses two neural networks.
-The first network, called an encoder, uses successive layers that compress an input.
-The compressed inputs are fed into a second decoder network that expands the compressed input back to its original size.
-The goal of both networks is to learn a configuration such that the input to the first network is identical to the output of the second network.
-
-The generator portion of a GAN takes in a small number of input values and expands them into a full-size image.
-This behaves very much like a decoding network.
-So, to create a true auto-encoder, it is only necessary to supply the encoding portion of a network and a training function that properly optimizes the network.
-Since auto-encoders are fairly well understood, if the entire GAN is misbehaving, isolating the generator from the discriminator aid debugging of existing components.
-If the auto-encoder doesn't work given a particular configuration, then it is likely that the generator needs to be tuned further.
-If the auto-encoder works correctly, then the discriminator needs further tuning.
+We use an auto-encoder to debug the GAN.
+Please see our DNN paper for why this works.
 
 We provide a script that accomplishes these tasks, called `run_autoencoder.py`.
 This script allows configuration of various hyperparameters from command line, and trains the auto-encoding network for a number of epochs.
@@ -128,7 +116,7 @@ Both configurations asymptotically approach 100% accuracy with the current data.
 
 
 Here are two sample invocations:
-* First, execute `python create_marked_ballots.py --outdir "temp/mark_test" --include-orgegon --count 20 --dpi 40` to create a dataset. Then, execute this script with `python run_recognizer.py --data-dir "temp/mark_test"`.
+* First, execute `python create_marked_ballots.py --outdir "temp/mark_test" --include-oregon --count 20 --dpi 40` to create a dataset. Then, execute this script with `python run_recognizer.py --data-dir "temp/mark_test"`.
 * Alternatively, you may create an in-memory dataset that is deleted after the program closes. A sample invocation in this mode is `python run_recognizer.py --include-oregon --ballot-count 20 --ballot-dpi 40`.
 Call the script with a `--help` flag to be given a description of how each of the flags works.
 If you wish to change the neural network configraton (i.e. changing the number of neurons in each layer), see lines `41-51` of the script.
@@ -138,22 +126,6 @@ In practice, with 3 kinds of marks, in a shared configuration, we are capable of
 
 If training time is slow, consider adding the `--aggressive-crop` flag, which will crop contest images to only contain the option bubbles and nothing else.
 This will miss marks outside of the option boxes (such as putting a check next to a candidates name to indicate a vote), but training speed will be multiples faster with this flag enabled.
-
-Use of the ballot marking tool speeds up the process of creating marked ballots. Here is an invocation that creates a pickle file from a ballot annotation made by our markup tool and uses it to create 10  marked up ballot images. The file `create_from_file.py` follows exactly the same structure as `create_marked_ballots.py`. The file `full_ballot_annotation.txt` should be created by marking up every contest and option on a ballot.
-
-`python save_contests.py --input full_ballot_annotation.txt --output or_ballot_2_pickle`
-`python create_from_file.py --outdir temp/mark_test --ballot or_ballot_2_pickle --count 20` 
-
-Future work includes creating an end-to-end pipeline for automatically detecting contests and options in the ballot images. The following is a working example of using the ballot marking tool to create training data for the FRCNN object detection model (COCO files and a directory of images) as well as a directory of evaluation contests. 
-
-	`annotations.txt` contains data for all contests on two ballots.
-	`test_ann.txt` contains data for the contests that contain options (all but 2 contests have been removed).
-
-The following lines can be executed from the `fcrnn/` directory to populate `contests/` with every contest from the ballots to evaluate after training and `../test2/contests/` with the two contests to use during training. The model should be capable of detecting option bubbles in all images in `contests/`. Evaluated images with red bounding boxes will be output to `../test2/eval/`
-
-`python make_coco.py --input ../annotation.txt --directory test/ --dest2 contests/`
-`python make_coco.py --input ../test_ann.txt --directory test/ --dest2 ../test2/contests --coco2 options_coco.json`
-`python run.py --train_data_dir ../test2/contests/ --train_coco ../test2/options_coco.json --eval_dir contests --eval_dest ../test2/eval/ --num_epochs 25`
 
 ## Recognizing Real Ballots (WIP)
 We have not yet been able to recognize real ballots.
