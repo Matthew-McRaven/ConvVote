@@ -139,10 +139,21 @@ In practice, with 3 kinds of marks, in a shared configuration, we are capable of
 If training time is slow, consider adding the `--aggressive-crop` flag, which will crop contest images to only contain the option bubbles and nothing else.
 This will miss marks outside of the option boxes (such as putting a check next to a candidates name to indicate a vote), but training speed will be multiples faster with this flag enabled.
 
-Here is an invocation that creates a pickle file from a ballot annotation made by our markup tool and uses it to create 10  marked up ballot images. The file `create_from_file.py` follows exactly the same structure as `create_marked_ballots.py`.
+Use of the ballot marking tool speeds up the process of creating marked ballots. Here is an invocation that creates a pickle file from a ballot annotation made by our markup tool and uses it to create 10  marked up ballot images. The file `create_from_file.py` follows exactly the same structure as `create_marked_ballots.py`. The file `full_ballot_annotation.txt` should be created by marking up every contest and option on a ballot.
 
-`python save_contests.py --input or_ballot_2.txt --output or_ballot_2`
-`python create_from_file.py --outdir temp/mark_test --ballot or_ballot_2 --count 20` 
+`python save_contests.py --input full_ballot_annotation.txt --output or_ballot_2_pickle`
+`python create_from_file.py --outdir temp/mark_test --ballot or_ballot_2_pickle --count 20` 
+
+Future work includes creating an end-to-end pipeline for automatically detecting contests and options in the ballot images. The following is a working example of using the ballot marking tool to create training data for the FRCNN object detection model (COCO files and a directory of images) as well as a directory of evaluation contests. 
+
+	`annotations.txt` contains data for all contests on two ballots.
+	`test_ann.txt` contains data for the contests that contain options (all but 2 contests have been removed).
+
+The following lines can be executed from the `fcrnn/` directory to populate `contests/` with every contest from the ballots to evaluate after training and `../test2/contests/` with the two contests to use during training. The model should be capable of detecting option bubbles in all images in `contests/`. Evaluated images with red bounding boxes will be output to `../test2/eval/`
+
+`python make_coco.py --input ../annotation.txt --directory test/ --dest2 contests/`
+`python make_coco.py --input ../test_ann.txt --directory test/ --dest2 ../test2/contests --coco2 options_coco.json`
+`python run.py --train_data_dir ../test2/contests/ --train_coco ../test2/options_coco.json --eval_dir contests --eval_dest ../test2/eval/ --num_epochs 25`
 
 ## Recognizing Real Ballots (WIP)
 We have not yet been able to recognize real ballots.
