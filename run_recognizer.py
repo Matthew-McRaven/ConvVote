@@ -18,6 +18,8 @@ if __name__ == "__main__":
 	parser.add_argument("--include-random", default=0, help="Create a number of ballots that look like random noise. Do not use with --data-dir.", type=int)
 	parser.add_argument("--ballot-count", default=100, help="The number of marked ballots to create from each class. Do not use with --data-dir.", type=int)
 	parser.add_argument("--ballot-dpi", default=30, help="The DPI at which to render. Do not use with --data-dir.", type=int)
+	# DO NOT enable this flag. It monotonically decreases the performance of the network
+	parser.add_argument("--force-downsample", help="Enable image downsamoling in puts (not recommended!)",  action='store_true')
 	parser.add_argument("--epochs", default=10, help="Number of times all images are to be shown to the neural net.",  type=int)
 	parser.add_argument("--aggressive-crop", help="Crop the contest images so that only the option rectangles remain. Reduces portability, but speeds training time.", action='store_true')
 	parser.add_argument("--batch-size", default=20, help="Number of items presented to the neural net at a time.", type=int)
@@ -37,6 +39,7 @@ if __name__ == "__main__":
 	config['learning_rate'] = args.learning_rate
 	config['dropout'] = args.dropout
 	config['l2_lambda'] = args.l2_lambda
+	config['rescale_pooling'] = args.force_downsample
 
 	# Determine the configuration of the middle networks convolution layers.
 	config['recog_conv_layers'] 	= [
